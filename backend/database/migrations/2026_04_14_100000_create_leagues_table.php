@@ -8,19 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('clubs', function (Blueprint $table) {
+        Schema::create('leagues', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
-            $table->string('logo_path')->default('');
-            $table->unsignedSmallInteger('founded_year')->nullable();
-            $table->text('motto')->nullable();
-            $table->string('status', 32)->default('active');
+            $table->string('season', 100);
+            $table->enum('status', ['active', 'inactive'])->default('inactive');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('clubs');
+        Schema::dropIfExists('leagues');
     }
 };

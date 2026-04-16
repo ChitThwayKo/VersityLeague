@@ -4,31 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Versity League</title>
-    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
     <header class="site-header">
-      <img src="../img/UniLogo.png" alt="University logo" class="logo" width="200" height="48" />
-      <h1>Versity League</h1>
-      <p class="tagline">Day 1 — frontend shell &amp; API check</p>
+      <a class="brand" href="index.html">
+        <img src="../img/UniLogo.png" alt="Versity League" width="48" height="48" />
+        <span>Versity League</span>
+      </a>
     </header>
-    <main>
-      <section class="panel">
-        <h2>API status</h2>
-        <p class="hint">
-          Set the API base URL if needed (default matches <code>php artisan serve</code> on port 8000).
-        </p>
-        <label class="field">
-          <span>API base URL</span>
-          <input type="url" id="api-base-input" value="http://127.0.0.1:8000/api" />
-        </label>
-        <div class="actions">
-          <button type="button" id="btn-health">GET /health</button>
-          <button type="button" id="btn-ping">GET /ping</button>
-        </div>
-        <pre id="api-output" class="output" aria-live="polite">Click a button to call the API.</pre>
-      </section>
+    <main class="site-main">
+      <p class="lead">
+        Testing the homepage.
+      </p>
     </main>
-    <script type="module" src="js/app.js"></script>
+    <script src="js/config.js" type="module"></script>
+    <script src="js/main.js" type="module"></script>
   </body>
 </html>
