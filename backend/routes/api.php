@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ClubRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,5 +26,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/admin/users', [AdminUserController::class, 'store'])
             ->middleware('default_admin');
+
+        Route::post('/club-registrations', [ClubRegistrationController::class, 'store'])
+            ->middleware('client');
     });
 });
