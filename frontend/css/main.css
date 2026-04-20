@@ -924,6 +924,21 @@ body.nav-open {
   color: rgba(251, 249, 244, 0.55);
 }
 
+.site-footer__admin {
+  display: inline-block;
+  margin-left: 0.75rem;
+}
+
+.site-footer__admin a {
+  color: rgba(252, 187, 60, 0.85);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-footer__admin a:hover {
+  text-decoration: underline;
+}
+
 /* —— Modals —— */
 dialog.modal {
   width: min(100% - 2rem, 480px);

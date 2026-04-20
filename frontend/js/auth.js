@@ -42,6 +42,43 @@ export async function apiPostJson(path, body, { auth = false } = {}) {
 /**
  * @returns {Promise<{ ok: boolean, status: number, data: Record<string, unknown> }>}
  */
+export async function apiGet(path, { auth = false } = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: jsonHeaders(auth),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * @returns {Promise<{ ok: boolean, status: number, data: Record<string, unknown> }>}
+ */
+export async function apiPatchJson(path, body, { auth = false } = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: jsonHeaders(auth),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * @returns {Promise<{ ok: boolean, status: number, data: Record<string, unknown> }>}
+ */
+export async function apiDelete(path, { auth = false } = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+    headers: jsonHeaders(auth),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * @returns {Promise<{ ok: boolean, status: number, data: Record<string, unknown> }>}
+ */
 export async function apiPostForm(path, formData) {
   const headers = { Accept: "application/json" };
   const t = getToken();
@@ -49,6 +86,23 @@ export async function apiPostForm(path, formData) {
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
+    headers,
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * @returns {Promise<{ ok: boolean, status: number, data: Record<string, unknown> }>}
+ */
+export async function apiPatchForm(path, formData) {
+  const headers = { Accept: "application/json" };
+  const t = getToken();
+  if (t) headers.Authorization = `Bearer ${t}`;
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PATCH",
     headers,
     body: formData,
   });
