@@ -2,31 +2,40 @@
 
 namespace App\Models;
 
-use App\Enums\UserRole;
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
     /**
+     * The attributes that are mass assignable.
+     *
      * @var list<string>
      */
+    public const ROLE_CLIENT = 'client';
+
+    public const ROLE_ADMIN = 'admin';
+
+    public const ROLE_MAIN_ADMIN = 'main_admin';
+
     protected $fillable = [
+        'username',
         'name',
         'email',
-        'student_staff_id',
         'password',
         'role',
     ];
 
     /**
+     * The attributes that should be hidden for serialization.
+     *
      * @var list<string>
      */
     protected $hidden = [
@@ -34,22 +43,21 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'role' => UserRole::class,
         ];
     }
 
-    public function managedClubs(): HasMany
+    public function accessTokens(): HasMany
     {
-        return $this->hasMany(Club::class, 'manager_user_id');
-    }
-
-    public function certificates(): HasMany
-    {
-        return $this->hasMany(Certificate::class);
+        return $this->hasMany(AccessToken::class);
     }
 }

@@ -54,6 +54,10 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Versity League — standings tie-breaker
+
+Public `GET /api/standings` uses `App\Support\StandingsService`: sort by **points** (3 / 1 / 0), then **goal difference**, then **goals for**, then **club name** (A–Z). See `StandingsService::TIE_BREAKERS` and project spec §5.1.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

@@ -9,8 +9,14 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
+    /**
+     * Seed the application's database.
+     */
     public function run(): void
     {
-        $this->call(DefaultAdminSeeder::class);
+        $this->call(MainAdminSeeder::class);
+        $this->call(DemoSeasonSeeder::class);
+        $this->call(DemoClubSeeder::class);
+        $this->call(DemoFixtureSeeder::class);
     }
 }

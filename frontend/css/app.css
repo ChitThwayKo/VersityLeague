@@ -1,0 +1,707 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #0a1931;
+  background: #f5f6f8;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  color: #0a1931;
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+.site-header {
+  background: #0a1931;
+  color: #fff;
+  padding: 0;
+}
+
+.header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-header .logo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.tagline {
+  margin: 0.35rem 0 0;
+  opacity: 0.85;
+  font-size: 0.9rem;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  padding: 0.65rem 1.5rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.site-nav a {
+  color: #f0c75e;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.section-block {
+  margin-bottom: 1.25rem;
+}
+
+.section-block h2 {
+  margin-top: 0;
+}
+
+.placeholder-copy {
+  color: #555;
+  margin: 0;
+}
+
+.gating-box {
+  padding: 1rem 0 0;
+}
+
+.gating-message {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.btn-primary.narrow {
+  width: auto;
+  min-width: 12rem;
+}
+
+.btn-secondary {
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  border: 1px solid #1d2b5b;
+  background: #fff;
+  color: #1d2b5b;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #f0f2f8;
+}
+
+.admin-season-form .checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-season-form .checkbox-row input {
+  width: auto;
+}
+
+.club-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.club-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+}
+
+.club-card:hover {
+  border-color: #1d2b5b;
+  background: #fff;
+}
+
+.club-card img,
+.club-card-placeholder {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.club-card-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eaf0;
+  font-size: 1.75rem;
+}
+
+.club-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.fixture-filter {
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  max-width: 18rem;
+}
+
+.fixture-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.fixture-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  background: #fafafa;
+}
+
+.fixture-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.fixture-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #e8eaf0;
+  color: #1d2b5b;
+}
+
+.fixture-status-scheduled {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.fixture-status-postponed {
+  background: #fff8e1;
+  color: #b45309;
+}
+
+.fixture-status-completed {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.fixture-match-no {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.fixture-teams {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.fixture-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.fixture-team-logo,
+.fixture-team-placeholder {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.fixture-team-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eaf0;
+  font-size: 1.1rem;
+}
+
+.fixture-team-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.fixture-vs {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.fixture-when {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0a1931;
+}
+
+.fixture-venue,
+.fixture-comp {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: #444;
+  line-height: 1.4;
+}
+
+.standings-wrap {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 36rem;
+}
+
+.standings-table th,
+.standings-table td {
+  padding: 0.5rem 0.45rem;
+  text-align: left;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.standings-table th {
+  background: #f0f2f8;
+  color: #1d2b5b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.standings-table td:nth-child(n + 3) {
+  text-align: right;
+}
+
+.standings-club-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 10rem;
+}
+
+.standings-club-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.standings-tie-note {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.result-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.result-score-row .field {
+  flex: 1;
+  min-width: 8rem;
+  margin-top: 0.5rem;
+}
+
+.modal-wide {
+  max-width: 36rem;
+}
+
+.club-modal-body h4 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+  color: #1d2b5b;
+}
+
+.club-modal-logo {
+  max-width: 160px;
+  max-height: 100px;
+  object-fit: contain;
+  margin: 0.5rem 0;
+}
+
+.club-member-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.club-member-photo {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.club-member-meta {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.club-member-ach {
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+  color: #444;
+}
+
+.admin-club-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.inline-field {
+  flex: 1;
+  min-width: 12rem;
+  margin: 0;
+}
+
+.inline-field select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.danger-text {
+  color: #b00020;
+  border-color: #b00020;
+}
+
+.roster-heading {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.member-admin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.member-admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.member-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+
+.btn-link-edit {
+  border: none;
+  background: none;
+  color: #1d2b5b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.btn-link-edit:hover {
+  color: #0a1931;
+}
+
+.club-roster-empty {
+  margin: 0.75rem 0 0;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.btn-link-delete {
+  border: none;
+  background: none;
+  color: #b00020;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.btn-link-delete:hover {
+  color: #800018;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(10, 25, 49, 0.08);
+}
+
+.hint {
+  font-size: 0.875rem;
+  color: #444;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 1rem 0;
+}
+
+.field input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #1d2b5b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.actions button:hover {
+  filter: brightness(1.08);
+}
+
+.output {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0a1931;
+  color: #e8ecf4;
+  border-radius: 6px;
+  overflow: auto;
+  font-size: 0.85rem;
+  min-height: 4rem;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.header-actions {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-ghost {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.session-user {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+/* Modals — ~30% dark backdrop (spec) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal-dialog {
+  background: #fff;
+  color: #0a1931;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 26rem;
+  box-shadow: 0 8px 32px rgba(10, 25, 49, 0.2);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.btn-close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #555;
+  padding: 0 0.25rem;
+}
+
+.modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.intent-fieldset {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.intent-fieldset legend {
+  padding: 0 0.35rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.intent-fieldset label {
+  display: block;
+  margin: 0.35rem 0;
+  cursor: pointer;
+}
+
+.recaptcha-slot {
+  margin: 0.75rem 0;
+  min-height: 78px;
+}
+
+.form-error {
+  color: #b00020;
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+}
+
+.modal-actions {
+  margin-top: 1rem;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #1d2b5b;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.member-form-actions {
+  margin-top: 0.75rem;
+}
+
+.member-form-actions .btn-primary.narrow {
+  flex: 0 1 auto;
+}

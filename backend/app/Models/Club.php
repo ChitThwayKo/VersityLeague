@@ -3,31 +3,41 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Club extends Model
 {
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_ARCHIVED = 'archived';
+
     protected $fillable = [
-        'manager_user_id',
-        'league_id',
-        'club_name',
-        'club_photo',
+        'name',
+        'logo_path',
+        'founded_year',
+        'motto',
         'status',
     ];
 
-    public function manager(): BelongsTo
+    protected function casts(): array
     {
-        return $this->belongsTo(User::class, 'manager_user_id');
+        return [
+            'founded_year' => 'integer',
+        ];
     }
 
-    public function league(): BelongsTo
+    public function members(): HasMany
     {
-        return $this->belongsTo(League::class);
+        return $this->hasMany(ClubMember::class);
     }
 
-    public function players(): HasMany
+    public function logoPublicUrl(): ?string
     {
-        return $this->hasMany(Player::class);
+        if ($this->logo_path === null || $this->logo_path === '') {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->logo_path);
     }
 }

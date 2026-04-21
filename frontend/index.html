@@ -3,508 +3,410 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Versity League — Collegiate Football</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="css/main.css" />
+    <meta name="recaptcha-site-key" content="" />
+    <title>Versity League</title>
+    <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-
     <header class="site-header">
-      <div class="site-header__inner">
-        <a class="brand" href="index.html">
-          <img
-            class="brand__logo"
-            src="../img/UniLogo.png?v=20260413"
-            alt=""
-            width="80"
-            height="80"
-          />
-          <span class="brand__text">Versity League</span>
-        </a>
-
-        <button
-          type="button"
-          class="nav-toggle"
-          aria-expanded="false"
-          aria-controls="nav-panel"
-          aria-label="Open menu"
-        >
-          <span class="nav-toggle__bar" aria-hidden="true"></span>
-          <span class="nav-toggle__bar" aria-hidden="true"></span>
-          <span class="nav-toggle__bar" aria-hidden="true"></span>
-        </button>
-
-        <nav class="site-nav" id="nav-panel" aria-label="Primary">
-          <a href="#standings">Standings</a>
-          <a href="#fixtures">Fixtures</a>
-          <a href="#gallery">Gallery</a>
-          <button type="button" class="link-btn" data-open-modal="modal-certificate">My certificate</button>
-          <div class="nav-panel__actions">
-            <button type="button" class="btn btn--ghost btn--block" data-open-modal="modal-sign-in">Sign in</button>
-            <button type="button" class="btn btn--gold btn--block" data-open-modal="modal-sign-up">Sign up</button>
+      <div class="header-top">
+        <div class="brand">
+          <img src="../img/UniLogo.png" alt="University logo" class="logo" width="200" height="48" />
+          <div>
+            <h1>Versity League</h1>
+            <p class="tagline">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
           </div>
-        </nav>
-
-        <div class="site-header__actions">
-          <button type="button" class="btn btn--ghost" data-open-modal="modal-sign-in">Sign in</button>
-          <button type="button" class="btn btn--gold" data-open-modal="modal-sign-up">Sign up</button>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-ghost" id="btn-open-signin" data-open-modal="signin">Sign in</button>
+          <button type="button" class="btn-ghost" id="btn-open-signup" data-open-modal="signup">Sign up</button>
+          <button type="button" class="btn-ghost hidden" id="btn-logout">Sign out</button>
+          <span class="session-user hidden" id="session-label" aria-live="polite"></span>
         </div>
       </div>
-      <div class="site-header__rule" aria-hidden="true"></div>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#standings">Standings</a>
+        <a href="#fixtures">Fixtures</a>
+        <a href="#clubs">Clubs</a>
+        <a href="#memories">Memories</a>
+        <a href="#registration">Club registration</a>
+        <a href="#dev-api">API tools</a>
+      </nav>
     </header>
 
     <main id="main">
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero__accent" aria-hidden="true"></div>
-        <div class="hero__grid">
-          <div class="hero__copy">
-            <p class="hero__eyebrow">2026 Championship Season</p>
-            <h1 id="hero-title" class="hero__title">
-              Versity <span class="hero__title-gold">League</span>
-            </h1>
-            <p class="hero__lead">
-              The arena where university clubs compete. Follow standings, fixtures, and gallery moments — all in one
-              place.
-            </p>
-            <div class="hero__actions">
-              <button type="button" class="btn btn--gold btn--lg" data-open-modal="modal-club-register">
-                Register club &amp; players
-              </button>
-              <a class="btn btn--secondary btn--lg" href="#standings">View standings</a>
-            </div>
-          </div>
-          
+      <section class="panel section-block" id="registration" tabindex="-1">
+        <h2>Club registration</h2>
+        <p class="hint" id="season-label-line"></p>
+        <div id="registration-gating" class="gating-box">
+          <p class="gating-message" id="gating-message">Loading season…</p>
+          <p class="hint hidden" id="gating-signin-hint"></p>
+          <button type="button" class="btn-primary narrow hidden" id="btn-register-cta" disabled>
+            Register your club
+          </button>
+          <p class="hint" id="register-cta-note"></p>
         </div>
       </section>
 
-      <section class="overview" aria-label="League overview">
-        <div class="overview__grid">
-          <article class="stat-card">
-            <h2 class="stat-card__label">Current phase</h2>
-            <p class="stat-card__value">Season 06</p>
-          </article>
-          <article class="stat-card">
-            <h2 class="stat-card__label">Total clubs</h2>
-            <p class="stat-card__value">—</p>
-          </article>
-          <article class="stat-card">
-            <h2 class="stat-card__label">Athletes</h2>
-            <p class="stat-card__value">—</p>
-          </article>
-          <article class="stat-card stat-card--highlight">
-            <h2 class="stat-card__label">Next kickoff</h2>
-            <p class="stat-card__value stat-card__value--sm">TBC</p>
-            <p class="stat-card__meta">Fixtures announced soon</p>
-          </article>
+      <section class="panel section-block" id="standings" tabindex="-1">
+        <h2>Standings</h2>
+        <p class="hint hidden" id="standings-season-label"></p>
+        <p class="hint" id="standings-status">Loading table…</p>
+        <div class="standings-wrap" id="standings-wrap">
+          <table class="standings-table" id="standings-table" aria-label="League table">
+            <thead>
+              <tr>
+                <th scope="col">Pos</th>
+                <th scope="col">Club</th>
+                <th scope="col">P</th>
+                <th scope="col">W</th>
+                <th scope="col">D</th>
+                <th scope="col">L</th>
+                <th scope="col">GF</th>
+                <th scope="col">GA</th>
+                <th scope="col">GD</th>
+                <th scope="col">Pts</th>
+              </tr>
+            </thead>
+            <tbody id="standings-tbody"></tbody>
+          </table>
         </div>
+        <p class="hint standings-tie-note hidden" id="standings-tie-note"></p>
       </section>
 
-      <div class="content-bento">
-        <section id="standings" class="section section--standings" aria-labelledby="standings-title">
-          <div class="section__head">
-            <h2 id="standings-title" class="section__title">League standings</h2>
-            <span class="section__accent" aria-hidden="true"></span>
-          </div>
-          <div class="table-wrap">
-            <table class="standings-table">
-              <thead>
-                <tr>
-                  <th scope="col">Rank</th>
-                  <th scope="col">Club</th>
-                  <th scope="col">P</th>
-                  <th scope="col">W</th>
-                  <th scope="col">D</th>
-                  <th scope="col">L</th>
-                  <th scope="col">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>01</td>
-                  <td>
-                    <span class="club-cell"><span class="club-badge" aria-hidden="true">TT</span> Thone Thone</span>
-                  </td>
-                  <td>12</td>
-                  <td>10</td>
-                  <td>2</td>
-                  <td>0</td>
-                  <td class="standings-table__pts">32</td>
-                </tr>
-                <tr>
-                  <td>02</td>
-                  <td>
-                    <span class="club-cell"><span class="club-badge club-badge--alt" aria-hidden="true">DN</span> Dinosaours</span>
-                  </td>
-                  <td>12</td>
-                  <td>9</td>
-                  <td>1</td>
-                  <td>2</td>
-                  <td class="standings-table__pts">28</td>
-                </tr>
-                <tr>
-                  <td>03</td>
-                  <td>
-                    <span class="club-cell"><span class="club-badge club-badge--green" aria-hidden="true">NS</span> Ngwe Saung</span>
-                  </td>
-                  <td>12</td>
-                  <td>8</td>
-                  <td>2</td>
-                  <td>2</td>
-                  <td class="standings-table__pts">26</td>
-                </tr>
-                <tr>
-                  <td>04</td>
-                  <td>
-                    <span class="club-cell"><span class="club-badge club-badge--orange" aria-hidden="true">B2</span> Batch2</span>
-                  </td>
-                  <td>12</td>
-                  <td>7</td>
-                  <td>3</td>
-                  <td>2</td>
-                  <td class="standings-table__pts">24</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="fixtures" class="section section--fixtures" aria-labelledby="fixtures-title">
-          <h2 id="fixtures-title" class="section__title">Fixtures &amp; results</h2>
-          <div class="fixture-stack">
-            <article class="fixture-card fixture-card--result">
-              <div class="fixture-card__meta">
-                <span class="pill">Matchday 12</span>
-                <time datetime="2026-10-24">Oct 24</time>
-              </div>
-              <div class="fixture-card__scoreboard">
-                <div class="fixture-team">
-                  <span class="club-badge" aria-hidden="true">TT</span>
-                  <span class="fixture-team__name">Thone Thone</span>
-                </div>
-                <div class="fixture-score">
-                  <span class="fixture-score__nums">3 – 1</span>
-                  <span class="fixture-score__ft">FT</span>
-                </div>
-                <div class="fixture-team">
-                  <span class="club-badge club-badge--green" aria-hidden="true">DN</span>
-                  <span class="fixture-team__name">Dinosaours</span>
-                </div>
-              </div>
-              <button type="button" class="btn btn--block btn--muted" data-open-modal="modal-match-details">
-                Match details
-              </button>
-            </article>
-
-            <article class="fixture-card fixture-card--upcoming">
-              <div class="fixture-card__meta">
-                <span class="pill pill--on-dark">Upcoming</span>
-                <time datetime="2026-10-28">Apr 24</time>
-              </div>
-              <div class="fixture-card__scoreboard">
-                <div class="fixture-team">
-                  <span class="club-badge club-badge--ghost" aria-hidden="true">NS</span>
-                  <span class="fixture-team__name">Ngwe Saung</span>
-                </div>
-                <div class="fixture-score">
-                  <span class="fixture-score__vs">vs</span>
-                  <span class="fixture-score__ft">19:00</span>
-                </div>
-                <div class="fixture-team">
-                  <span class="club-badge club-badge--ghost" aria-hidden="true">B2</span>
-                  <span class="fixture-team__name">Batch2</span>
-                </div>
-              </div>
-              <p class="fixture-card__venue">
-                <span aria-hidden="true">📍</span> YUSC Stadium
-              </p>
-              <button type="button" class="btn btn--block btn--gold" data-open-modal="modal-match-details">
-                Match preview
-              </button>
-            </article>
-          </div>
-        </section>
-      </div>
-
-      <section id="gallery" class="gallery" aria-labelledby="gallery-title">
-        <div class="gallery__head">
-          <h2 id="gallery-title" class="section__title">The gallery</h2>
-          <div class="gallery__controls">
-            <button type="button" class="icon-btn" data-gallery-prev aria-label="Previous photos">
-              ‹
-            </button>
-            <button type="button" class="icon-btn" data-gallery-next aria-label="Next photos">
-              ›
-            </button>
-          </div>
-        </div>
-        <div class="gallery__track" role="list">
-          <div class="gallery__slide" role="listitem">
-            <img
-              src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80"
-              alt="Crowd in stadium seats"
-              width="800"
-              height="500"
-              loading="lazy"
-            />
-          </div>
-          <div class="gallery__slide" role="listitem">
-            <img
-              src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80"
-              alt="Football on grass pitch"
-              width="800"
-              height="500"
-              loading="lazy"
-            />
-          </div>
-          <div class="gallery__slide" role="listitem">
-            <img
-              src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=800&q=80"
-              alt="Players training on field"
-              width="800"
-              height="500"
-              loading="lazy"
-            />
-          </div>
-          <div class="gallery__slide" role="listitem">
-            <img
-              src="https://www.bbc.com/sport/football/articles/cp82zj2zr58o"
-              alt="Arsenal"
-              width="800"
-              height="500"
-              loading="lazy"
-            />
-          </div>
-        </div>
+      <section class="panel section-block" id="fixtures" tabindex="-1">
+        <h2>Fixtures</h2>
+        <p class="hint hidden" id="fixtures-season-label"></p>
+        <label class="field inline-field fixture-filter">
+          <span>Show</span>
+          <select id="fixtures-filter" aria-label="Filter fixtures">
+            <option value="all">All matches</option>
+            <option value="upcoming">Upcoming only</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="postponed">Postponed</option>
+            <option value="completed">Completed</option>
+          </select>
+        </label>
+        <p class="hint" id="fixtures-status">Loading fixtures…</p>
+        <div class="fixture-list" id="fixtures-list" aria-live="polite"></div>
       </section>
 
-      <section id="cta" class="cta" aria-labelledby="cta-title">
-        <div class="cta__inner">
-          <h2 id="cta-title" class="cta__title">Ready to compete?</h2>
-          <p class="cta__text">
-            Club and player registration opens here. Submit your squad for admin review — integration with the API
-            follows in the next build step.
-          </p>
-          <div class="cta__actions">
-            <button type="button" class="btn btn--gold btn--lg" data-open-modal="modal-club-register">
-              Register your club
-            </button>
-          </div>
+      <section class="panel section-block" id="clubs" tabindex="-1">
+        <h2>Clubs</h2>
+        <p class="hint" id="clubs-status">Loading clubs…</p>
+        <div class="club-grid" id="clubs-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="panel section-block placeholder-section" id="memories" tabindex="-1">
+        <h2>Memories</h2>
+        <p class="placeholder-copy">Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.</p>
+      </section>
+
+      <section class="panel section-block hidden" id="admin-clubs-panel" tabindex="-1">
+        <h2>Admin — clubs</h2>
+        <p class="hint">Lorem ipsum dolor sit amet. Upload logos and photos to <code>storage/app/public</code> via API; run <code>php artisan storage:link</code> once.</p>
+        <div class="admin-club-toolbar">
+          <label class="field inline-field">
+            <span>Select club</span>
+            <select id="admin-club-select"></select>
+          </label>
+          <button type="button" class="btn-secondary" id="admin-club-new">New club</button>
+          <button type="button" class="btn-secondary danger-text" id="admin-club-delete">Delete club</button>
         </div>
+        <form id="form-admin-club" class="admin-season-form">
+          <input type="hidden" id="admin-club-id" value="" />
+          <label class="field">
+            <span>Name</span>
+            <input type="text" id="admin-club-name" required />
+          </label>
+          <label class="field">
+            <span>Founded year</span>
+            <input type="number" id="admin-club-founded" min="1800" max="2100" />
+          </label>
+          <label class="field">
+            <span>Motto</span>
+            <textarea id="admin-club-motto" rows="2"></textarea>
+          </label>
+          <label class="field">
+            <span>Status</span>
+            <select id="admin-club-status">
+              <option value="active">active</option>
+              <option value="archived">archived</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Logo image</span>
+            <input type="file" id="admin-club-logo" accept="image/*" />
+          </label>
+          <p class="form-error hidden" id="admin-club-error" role="alert"></p>
+          <button type="submit" class="btn-primary narrow">Save club</button>
+        </form>
+        <h3 class="roster-heading">Roster</h3>
+        <ul class="member-admin-list" id="admin-club-members-list"></ul>
+        <h3 class="roster-heading" id="admin-member-form-title">Add member</h3>
+        <form id="form-admin-member" class="admin-season-form">
+          <input type="hidden" id="admin-member-id" value="" />
+          <label class="field">
+            <span>Type</span>
+            <select id="admin-member-type" name="member_type">
+              <option value="coach">coach</option>
+              <option value="player">player</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Name</span>
+            <input type="text" id="admin-member-name" required />
+          </label>
+          <label class="field">
+            <span>Jersey # (players)</span>
+            <input type="number" id="admin-member-jersey" min="1" max="999" />
+          </label>
+          <label class="field">
+            <span>Position (players)</span>
+            <input type="text" id="admin-member-position" maxlength="64" />
+          </label>
+          <label class="field">
+            <span>Previous achievements</span>
+            <textarea id="admin-member-achievements" rows="2"></textarea>
+          </label>
+          <label class="field">
+            <span>Sort order</span>
+            <input type="number" id="admin-member-sort" min="0" value="0" />
+          </label>
+          <label class="field">
+            <span>Photo</span>
+            <input type="file" id="admin-member-photo" accept="image/*" />
+          </label>
+          <p class="form-error hidden" id="admin-member-error" role="alert"></p>
+          <div class="actions member-form-actions">
+            <button type="submit" class="btn-primary narrow" id="admin-member-submit">Add member</button>
+            <button type="button" class="btn-secondary hidden" id="admin-member-cancel-edit">Cancel edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel section-block hidden" id="admin-fixtures-panel" tabindex="-1">
+        <h2>Admin — fixtures</h2>
+        <p class="hint">Create and edit scheduled matches for the league (spec §5.2).</p>
+        <div class="admin-club-toolbar">
+          <label class="field inline-field">
+            <span>Select fixture</span>
+            <select id="admin-fixture-select"></select>
+          </label>
+          <button type="button" class="btn-secondary" id="admin-fixture-new">New fixture</button>
+          <button type="button" class="btn-secondary danger-text" id="admin-fixture-delete">Delete</button>
+        </div>
+        <form id="form-admin-fixture" class="admin-season-form">
+          <input type="hidden" id="admin-fixture-id" value="" />
+          <label class="field">
+            <span>Season</span>
+            <select id="admin-fixture-season" required></select>
+          </label>
+          <label class="field">
+            <span>Match number (optional)</span>
+            <input type="text" id="admin-fixture-matchno" maxlength="64" />
+          </label>
+          <label class="field">
+            <span>Home club</span>
+            <select id="admin-fixture-home" required></select>
+          </label>
+          <label class="field">
+            <span>Away club</span>
+            <select id="admin-fixture-away" required></select>
+          </label>
+          <label class="field">
+            <span>Kick-off</span>
+            <input type="datetime-local" id="admin-fixture-kickoff" required />
+          </label>
+          <label class="field">
+            <span>Venue name</span>
+            <input type="text" id="admin-fixture-venue" required maxlength="255" />
+          </label>
+          <label class="field">
+            <span>Venue location (optional)</span>
+            <input type="text" id="admin-fixture-venueloc" maxlength="255" />
+          </label>
+          <label class="field">
+            <span>Competition</span>
+            <input type="text" id="admin-fixture-comp" required maxlength="255" />
+          </label>
+          <label class="field">
+            <span>Round / matchweek (optional)</span>
+            <input type="text" id="admin-fixture-round" maxlength="255" />
+          </label>
+          <label class="field">
+            <span>Status</span>
+            <select id="admin-fixture-status">
+              <option value="scheduled">scheduled</option>
+              <option value="postponed">postponed</option>
+              <option value="completed">completed</option>
+            </select>
+          </label>
+          <p class="form-error hidden" id="admin-fixture-error" role="alert"></p>
+          <button type="submit" class="btn-primary narrow">Save fixture</button>
+        </form>
+      </section>
+
+      <section class="panel section-block hidden" id="admin-results-panel" tabindex="-1">
+        <h2>Admin — match results</h2>
+        <p class="hint">Enter full-time scores; the table updates from saved results only.</p>
+        <label class="field inline-field">
+          <span>Fixture</span>
+          <select id="admin-result-fixture-select"></select>
+        </label>
+        <p class="hint" id="admin-result-fixture-label"></p>
+        <form id="form-admin-result" class="admin-season-form">
+          <div class="result-score-row">
+            <label class="field">
+              <span id="admin-result-home-label">Home goals</span>
+              <input type="number" id="admin-result-home-goals" min="0" max="99" required />
+            </label>
+            <label class="field">
+              <span id="admin-result-away-label">Away goals</span>
+              <input type="number" id="admin-result-away-goals" min="0" max="99" required />
+            </label>
+          </div>
+          <p class="form-error hidden" id="admin-result-error" role="alert"></p>
+          <div class="actions member-form-actions">
+            <button type="submit" class="btn-primary narrow" id="admin-result-save">Save result</button>
+            <button type="button" class="btn-secondary danger-text" id="admin-result-clear">Clear result</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel section-block hidden" id="admin-season-panel" tabindex="-1">
+        <h2>Admin — active season</h2>
+        <p class="hint">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur sodales ligula in libero (<code>is_active</code>).</p>
+        <form id="form-admin-season" class="admin-season-form">
+          <input type="hidden" id="admin-season-id" name="id" value="" />
+          <label class="field">
+            <span>Label</span>
+            <input type="text" id="admin-season-label" name="label" required />
+          </label>
+          <label class="field">
+            <span>Registration opens</span>
+            <input type="datetime-local" id="admin-season-opens" name="registration_opens_at" required />
+          </label>
+          <label class="field">
+            <span>Registration closes</span>
+            <input type="datetime-local" id="admin-season-closes" name="registration_closes_at" required />
+          </label>
+          <label class="field">
+            <span>League started at (optional)</span>
+            <input type="datetime-local" id="admin-season-started" name="started_at" />
+          </label>
+          <label class="field checkbox-row">
+            <input type="checkbox" id="admin-season-active" name="is_active" />
+            <span>Set as active season</span>
+          </label>
+          <p class="form-error hidden" id="admin-season-error" role="alert"></p>
+          <div class="actions">
+            <button type="submit" class="btn-primary narrow" id="admin-season-save">Save season</button>
+            <button type="button" class="btn-secondary" id="admin-season-new">New season (create)</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel section-block" id="dev-api" tabindex="-1">
+        <h2>API tools</h2>
+        <p class="hint">Testing API</p>
+        <label class="field">
+          <span>API base URL</span>
+          <input type="url" id="api-base-input" value="http://127.0.0.1:8000/api" />
+        </label>
+        <div class="actions">
+          <button type="button" id="btn-season-current">GET /seasons/current</button>
+          <button type="button" id="btn-health">GET /health</button>
+          <button type="button" id="btn-ping">GET /ping</button>
+          <button type="button" id="btn-me">GET /auth/me</button>
+          <button type="button" id="btn-clubs">GET /clubs</button>
+          <button type="button" id="btn-fixtures">GET /fixtures</button>
+          <button type="button" id="btn-standings">GET /standings</button>
+        </div>
+        <pre id="api-output" class="output" aria-live="polite">Use buttons above for raw JSON.</pre>
       </section>
     </main>
 
-    <footer class="site-footer">
-      <p class="site-footer__copy">
-        © 2026 Versity League. All rights reserved.
-        <span class="site-footer__admin"><a href="admin/">Admin</a></span>
-      </p>
-    </footer>
-
-    <!-- Modals -->
-    <dialog id="modal-sign-in" class="modal" aria-labelledby="modal-sign-in-title">
-      <div class="modal__panel">
-        <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
-        <h2 id="modal-sign-in-title" class="modal__title">Sign in</h2>
-        <p class="modal__intro">Use your university email. Choose the correct portal for your role.</p>
-        <form class="form" id="form-sign-in">
-          <div class="form-feedback" role="alert" hidden></div>
-          <label class="field">
-            <span class="field__label">Email</span>
-            <input type="email" name="email" autocomplete="email" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Password</span>
-            <input type="password" name="password" autocomplete="current-password" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Portal</span>
-            <select name="portal" required>
-              <option value="client">Student / staff (public site)</option>
-              <option value="admin">League admin</option>
-            </select>
-          </label>
-          <button type="submit" class="btn btn--primary btn--block">Sign in</button>
-          <p class="form__hint">Uses <code>POST /api/v1/auth/login</code>. Token is stored in this browser for registration.</p>
-        </form>
-      </div>
-    </dialog>
-
-    <dialog id="modal-sign-up" class="modal" aria-labelledby="modal-sign-up-title">
-      <div class="modal__panel">
-        <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
-        <h2 id="modal-sign-up-title" class="modal__title">Create account</h2>
-        <p class="modal__intro">Public registration creates a <strong>client</strong> account only.</p>
-        <form class="form" id="form-sign-up">
-          <div class="form-feedback" role="alert" hidden></div>
-          <label class="field">
-            <span class="field__label">Full name</span>
-            <input type="text" name="name" autocomplete="name" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Email</span>
-            <input type="email" name="email" autocomplete="email" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Student / staff ID</span>
-            <input type="text" name="student_staff_id" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Password</span>
-            <input type="password" name="password" autocomplete="new-password" required />
-          </label>
-          <label class="field">
-            <span class="field__label">Confirm password</span>
-            <input type="password" name="password_confirmation" autocomplete="new-password" required />
-          </label>
-          <button type="submit" class="btn btn--primary btn--block">Create account</button>
-          <p class="form__hint">Uses <code>POST /api/v1/auth/register</code> (client accounts only).</p>
-        </form>
-      </div>
-    </dialog>
-
-    <dialog id="modal-match-details" class="modal modal--wide" aria-labelledby="modal-match-title">
-      <div class="modal__panel">
-        <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
-        <h2 id="modal-match-title" class="modal__title">Match details</h2>
-        <dl class="detail-list">
-          <div><dt>League</dt><dd>Versity League — Season 06</dd></div>
-          <div><dt>Teams</dt><dd>Ngwe Saung vs Dinosaours</dd></div>
-          <div><dt>Date</dt><dd>Friday, 24 April 2026</dd></div>
-          <div><dt>Time</dt><dd>19:30</dd></div>
-          <div><dt>Venue</dt><dd>YUSC Stadium</dd></div>
-          <div><dt>Status</dt><dd>Upcoming</dd></div>
-          <div><dt>Score</dt><dd>3 – 1</dd></div>
-        </dl>
-        <p class="form__hint">Live data will load from the fixtures API (Day 6).</p>
-      </div>
-    </dialog>
-
-    <dialog id="modal-certificate" class="modal modal--certificate" aria-labelledby="modal-cert-title">
-      <div class="modal__panel modal__panel--certificate">
-        <button
-          type="button"
-          class="modal__close modal__close--certificate"
-          data-close-modal
-          aria-label="Close"
-        >
-          &times;
-        </button>
-        <header class="certificate-modal__header">
-          <div class="certificate-modal__header-glow" aria-hidden="true"></div>
-          <div class="certificate-modal__header-inner">
-            <div class="certificate-modal__brand">
-              <img
-                class="certificate-modal__logo"
-                src="../img/UniLogo.png?v=20260413"
-                alt="Versity League logo"
-                width="96"
-                height="96"
-              />
-              <div class="certificate-modal__brand-text">
-                <span class="certificate-modal__org">Versity League</span>
-                <span class="certificate-modal__tagline">Official certificate</span>
-              </div>
-            </div>
-          </div>
-          <div class="certificate-modal__header-rule" aria-hidden="true"></div>
-        </header>
-        <div class="certificate-modal__body">
-          <div class="certificate-frame">
-            <span class="certificate-frame__watermark" aria-hidden="true">VL</span>
-            <div class="certificate-frame__inner">
-              <p class="certificate-frame__ribbon">Certificate of achievement</p>
-              <h2 id="modal-cert-title" class="certificate-frame__title">Certificate of participation</h2>
-              <div class="certificate-frame__divider" aria-hidden="true"></div>
-              <dl class="certificate-frame__dl">
-                <div><dt>Student / staff ID</dt><dd>—</dd></div>
-                <div><dt>Name</dt><dd>—</dd></div>
-                <div><dt>Participate years</dt><dd>—</dd></div>
-                <div><dt>Position</dt><dd>—</dd></div>
-                <div class="certificate-frame__row" hidden><dt>Goals</dt><dd>0</dd></div>
-                <div class="certificate-frame__row" hidden><dt>Assists</dt><dd>0</dd></div>
-              </dl>
-              <div class="certificate-frame__seal" aria-hidden="true">
-                <span class="certificate-frame__seal-ring"></span>
-                <span class="certificate-frame__seal-text">Official</span>
-              </div>
-              <div class="certificate-frame__actions">
-                <button type="button" class="btn btn--ghost" data-close-modal>Close</button>
-                <button type="button" class="btn btn--gold" disabled>Download PDF</button>
-              </div>
-              <p class="certificate-frame__foot-note">Sign in to load your certificate.</p>
-            </div>
-          </div>
+    <!-- Sign in modal -->
+    <div class="modal-backdrop" id="modal-signin" role="dialog" aria-modal="true" aria-labelledby="signin-title" hidden>
+      <div class="modal-dialog">
+        <div class="modal-head">
+          <h2 id="signin-title">Sign in</h2>
+          <button type="button" class="btn-close" data-close-modal aria-label="Close">&times;</button>
         </div>
-      </div>
-    </dialog>
-
-    <dialog id="modal-club-register" class="modal modal--wide" aria-labelledby="modal-reg-title">
-      <div class="modal__panel">
-        <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
-        <h2 id="modal-reg-title" class="modal__title">Club &amp; player registration</h2>
-        <p class="modal__intro">Combined submission (pending admin approval). You must be signed in as a client.</p>
-        <form class="form form--split" id="form-club-register" enctype="multipart/form-data" method="post">
-          <div class="form-feedback form-feedback--full" role="alert" hidden></div>
-          <fieldset class="form__fieldset">
-            <legend>Club</legend>
-            <label class="field">
-              <span class="field__label">Club name</span>
-              <input type="text" name="club_name" required maxlength="255" />
-            </label>
-            <label class="field">
-              <span class="field__label">Club photo</span>
-              <input type="file" name="club_photo" accept="image/*" required />
-            </label>
+        <form id="form-signin" class="modal-body">
+          <fieldset class="intent-fieldset">
+            <legend>I am signing in as</legend>
+            <label><input type="radio" name="intent" value="client" checked /> Student / staff (client)</label>
+            <label><input type="radio" name="intent" value="admin" /> Admin</label>
           </fieldset>
-          <fieldset class="form__fieldset">
-            <legend>Primary player</legend>
-            <label class="field">
-              <span class="field__label">Full name</span>
-              <input type="text" name="player_full_name" required maxlength="255" />
-            </label>
-            <label class="field">
-              <span class="field__label">Student / staff ID</span>
-              <input type="text" name="player_student_staff_id" required maxlength="100" />
-            </label>
-            <label class="field">
-              <span class="field__label">Jersey number</span>
-              <input type="number" name="jersey_number" min="0" max="99999" />
-            </label>
-            <label class="field">
-              <span class="field__label">Position / role</span>
-              <select name="position" required>
-                <option value="" disabled selected>Select…</option>
-                <option value="Coach">Coach</option>
-                <option value="Manager">Manager</option>
-                <option value="Captain">Captain</option>
-                <option value="Vice Captain">Vice Captain</option>
-                <option value="Forward">Forward</option>
-                <option value="Midfielder">Midfielder</option>
-                <option value="Defender">Defender</option>
-                <option value="Goalkeeper">Goalkeeper</option>
-                <option value="Left Wing">Left Wing</option>
-                <option value="Right Wing">Right Wing</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Player photo</span>
-              <input type="file" name="player_photo" accept="image/*" />
-            </label>
-          </fieldset>
-          <div class="form__full">
-            <button type="submit" class="btn btn--primary btn--block">Submit registration</button>
-            <p class="form__hint">Uses <code>POST /api/v1/club-registrations</code> (multipart). No edits after submit — admin manages records.</p>
+          <label class="field">
+            <span>Username (Student / Staff ID)</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <div id="recaptcha-signin" class="recaptcha-slot"></div>
+          <p class="form-error hidden" id="signin-error" role="alert"></p>
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">Sign in</button>
           </div>
         </form>
       </div>
-    </dialog>
+    </div>
 
-    <script src="js/main.js" type="module"></script>
+    <!-- Sign up modal -->
+    <div class="modal-backdrop" id="modal-signup" role="dialog" aria-modal="true" aria-labelledby="signup-title" hidden>
+      <div class="modal-dialog">
+        <div class="modal-head">
+          <h2 id="signup-title">Sign up (client)</h2>
+          <button type="button" class="btn-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <form id="form-signup" class="modal-body">
+          <p class="hint">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero.</p>
+          <label class="field">
+            <span>Username (Student / Staff ID)</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>Full name</span>
+            <input name="name" autocomplete="name" required />
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input name="password" type="password" autocomplete="new-password" required minlength="8" />
+          </label>
+          <label class="field">
+            <span>Confirm password</span>
+            <input name="password_confirmation" type="password" autocomplete="new-password" required minlength="8" />
+          </label>
+          <div id="recaptcha-signup" class="recaptcha-slot"></div>
+          <p class="form-error hidden" id="signup-error" role="alert"></p>
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">Create account</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Club detail modal (~30% backdrop) -->
+    <div class="modal-backdrop" id="modal-club" role="dialog" aria-modal="true" aria-labelledby="club-modal-title" hidden>
+      <div class="modal-dialog modal-wide">
+        <div class="modal-head">
+          <h2 id="club-modal-title">Club</h2>
+          <button type="button" class="btn-close" data-close-club-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body club-modal-body" id="club-modal-content"></div>
+      </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>

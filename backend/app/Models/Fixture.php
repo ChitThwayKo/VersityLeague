@@ -4,31 +4,39 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Fixture extends Model
 {
+    public const STATUS_SCHEDULED = 'scheduled';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_POSTPONED = 'postponed';
+
     protected $fillable = [
-        'league_id',
+        'season_id',
+        'match_number',
         'home_club_id',
         'away_club_id',
-        'match_date',
-        'match_time',
-        'venue',
-        'home_score',
-        'away_score',
+        'kickoff_at',
+        'venue_name',
+        'venue_location',
+        'competition_name',
+        'round_label',
         'status',
     ];
 
     protected function casts(): array
     {
         return [
-            'match_date' => 'date',
+            'kickoff_at' => 'datetime',
         ];
     }
 
-    public function league(): BelongsTo
+    public function season(): BelongsTo
     {
-        return $this->belongsTo(League::class);
+        return $this->belongsTo(Season::class);
     }
 
     public function homeClub(): BelongsTo
@@ -39,5 +47,10 @@ class Fixture extends Model
     public function awayClub(): BelongsTo
     {
         return $this->belongsTo(Club::class, 'away_club_id');
+    }
+
+    public function result(): HasOne
+    {
+        return $this->hasOne(MatchResult::class);
     }
 }
