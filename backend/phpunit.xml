@@ -32,6 +32,5 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <env name="RECAPTCHA_SKIP_VERIFY" value="true"/>
     </php>
 </phpunit>

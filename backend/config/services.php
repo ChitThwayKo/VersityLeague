@@ -35,9 +35,4 @@ return [
         ],
     ],
 
-    'recaptcha' => [
-        'secret' => env('RECAPTCHA_SECRET_KEY'),
-        'skip_verify' => filter_var(env('RECAPTCHA_SKIP_VERIFY', false), FILTER_VALIDATE_BOOLEAN),
-    ],
-
 ];
