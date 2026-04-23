@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- XAMPP on Windows often uses Apache :8080 while :80 is IIS. Change/remove port if your Laravel URL differs. -->
+    <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4/backend/public" />
     <title>Versity League — Collegiate Football</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -51,10 +53,12 @@
               <button type="button" class="btn btn--gold btn--block" data-open-modal="modal-sign-up">Sign up</button>
             </div>
             <div class="header-auth-user header-auth-user--row" data-auth-state="signed-in" hidden>
+              <button type="button" class="btn btn--secondary btn--block js-admin-dashboard" hidden>
+                League admin
+              </button>
               <button type="button" class="btn btn--gold btn--block js-sign-out">Sign out</button>
               <div class="header-auth-user__meta">
                 <span class="header-auth-user__signed-line">
-                  Signed in as : 
                   <strong class="js-header-user-id" aria-live="polite"></strong>
                 </span>
               </div>
@@ -68,10 +72,10 @@
             <button type="button" class="btn btn--gold" data-open-modal="modal-sign-up">Sign up</button>
           </div>
           <div class="header-auth-user header-auth-user--row" data-auth-state="signed-in" hidden>
+            <button type="button" class="btn btn--secondary js-admin-dashboard" hidden>League admin</button>
             <button type="button" class="btn btn--gold js-sign-out">Sign out</button>
             <div class="header-auth-user__meta">
               <span class="header-auth-user__signed-line">
-                Signed in as : 
                 <strong class="js-header-user-id" aria-live="polite"></strong>
               </span>
             </div>
@@ -207,8 +211,12 @@
       <div class="modal__panel">
         <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
         <h2 id="modal-sign-in-title" class="modal__title">Sign in</h2>
-        <p class="modal__intro">Use your email. Choose the correct portal for your role.</p>
-        <form class="form" id="form-sign-in">
+        <p class="modal__intro">
+          Use your email. For <strong>League admin</strong> accounts, choose <strong>League admin</strong> on the portal
+          slider (or sign in once as student/staff — we will retry as admin if the server asks for the correct portal).
+          Admins are then sent to the admin dashboard.
+        </p>
+        <form class="form" id="form-sign-in" method="post" action="#" onsubmit="return false">
           <div class="form-feedback" role="alert" hidden></div>
           <label class="field">
             <span class="field__label">Email</span>
@@ -236,7 +244,7 @@
               </label>
             </div>
           </div>
-          <button type="submit" class="btn btn--primary btn--block">Sign in</button>
+          <button type="button" class="btn btn--primary btn--block" id="btn-public-sign-in">Sign in</button>
           <p class="modal__footer-link">
             Don&apos;t have an account?
             <button type="button" class="link-btn" id="switch-signin-to-signup">Sign up</button>
@@ -250,7 +258,7 @@
         <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
         <h2 id="modal-sign-up-title" class="modal__title">Create account</h2>
         <p class="modal__intro">Public registration creates a <strong>client</strong> account only.</p>
-        <form class="form" id="form-sign-up">
+        <form class="form" id="form-sign-up" method="post" action="#">
           <div class="form-feedback" role="alert" hidden></div>
           <label class="field">
             <span class="field__label">Full name</span>
@@ -266,16 +274,35 @@
           </label>
           <label class="field">
             <span class="field__label">Password</span>
-            <input type="password" name="password" autocomplete="new-password" required />
+            <input
+              type="password"
+              name="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="At least 8 characters, including uppercase, lowercase, number, and special character."
+            />
           </label>
           <label class="field">
             <span class="field__label">Confirm password</span>
-            <input type="password" name="password_confirmation" autocomplete="new-password" required />
+            <input
+              type="password"
+              name="password_confirmation"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="At least 8 characters, including uppercase, lowercase, number, and special character."
+            />
           </label>
           <button type="submit" class="btn btn--primary btn--block">Create account</button>
           <p class="modal__footer-link">
             Already have an account?
             <button type="button" class="link-btn" id="switch-signup-to-signin">Sign in</button>
+          </p>
+          <p class="form__hint">
+            Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
           </p>
           <p class="form__hint">Uses <code>POST /api/v1/auth/register</code> (client accounts only).</p>
         </form>
@@ -364,63 +391,74 @@
       </div>
     </dialog>
 
-    <dialog id="modal-club-register" class="modal modal--wide" aria-labelledby="modal-reg-title">
+    <dialog id="modal-club-register" class="modal modal--wide modal--club-register" aria-labelledby="modal-reg-title">
       <div class="modal__panel">
         <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
         <h2 id="modal-reg-title" class="modal__title">Club &amp; player registration</h2>
         <p class="modal__intro">Combined submission (pending admin approval). You must be signed in as a client.</p>
-        <form class="form form--split" id="form-club-register" enctype="multipart/form-data" method="post">
+        <form class="club-register-form" id="form-club-register" enctype="multipart/form-data" method="post">
           <div class="form-feedback form-feedback--full" role="alert" hidden></div>
-          <fieldset class="form__fieldset">
-            <legend>Club</legend>
-            <label class="field">
-              <span class="field__label">Club name</span>
-              <input type="text" name="club_name" required maxlength="255" />
-            </label>
-            <label class="field">
-              <span class="field__label">Club photo</span>
-              <input type="file" name="club_photo" accept="image/*" required />
-            </label>
-          </fieldset>
-          <fieldset class="form__fieldset">
-            <legend>Primary player</legend>
-            <label class="field">
-              <span class="field__label">Full name</span>
-              <input type="text" name="player_full_name" required maxlength="255" />
-            </label>
-            <label class="field">
-              <span class="field__label">Student / staff ID</span>
-              <input type="text" name="player_student_staff_id" required maxlength="100" />
-            </label>
-            <label class="field">
-              <span class="field__label">Jersey number</span>
-              <input type="number" name="jersey_number" min="0" max="99999" />
-            </label>
-            <label class="field">
-              <span class="field__label">Position / role</span>
-              <select name="position" required>
-                <option value="" disabled selected>Select…</option>
-                <option value="Coach">Coach</option>
-                <option value="Manager">Manager</option>
-                <option value="Captain">Captain</option>
-                <option value="Vice Captain">Vice Captain</option>
-                <option value="Forward">Forward</option>
-                <option value="Midfielder">Midfielder</option>
-                <option value="Defender">Defender</option>
-                <option value="Goalkeeper">Goalkeeper</option>
-                <option value="Left Wing">Left Wing</option>
-                <option value="Right Wing">Right Wing</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">Player photo</span>
-              <input type="file" name="player_photo" accept="image/*" />
-            </label>
-          </fieldset>
-          <div class="form__full">
-            <button type="submit" class="btn btn--primary btn--block">Submit registration</button>
-            <p class="form__hint">Uses <code>POST /api/v1/club-registrations</code> (multipart). No edits after submit — admin manages records.</p>
-          </div>
+
+          <section class="club-register-card" aria-labelledby="club-register-section-title">
+            <h3 id="club-register-section-title" class="club-register-title">Club &amp; player registration</h3>
+
+            <div class="club-register-block">
+              <h4 class="club-register-subtitle">1. Club</h4>
+              <div class="club-register-club-grid">
+                <label class="club-logo-picker">
+                  <input type="file" name="club_photo" accept="image/*" required />
+                  <span class="club-logo-picker__box" aria-hidden="true">
+                    <span class="club-logo-picker__plus">+</span>
+                    <img class="club-logo-picker__preview" alt="Club logo preview" hidden />
+                  </span>
+                  <span class="club-logo-picker__label">Club logo</span>
+                </label>
+
+                <div class="club-register-club-fields">
+                  <label class="field field--inline">
+                    <span class="field__label">Club Name</span>
+                    <input type="text" name="club_name" required maxlength="255" />
+                  </label>
+                  <label class="field field--inline">
+                    <span class="field__label">Season</span>
+                    <select name="league_id" id="club-register-season" required>
+                      <option value="">Loading active season...</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="club-register-divider" aria-hidden="true"></div>
+
+            <div class="club-register-block">
+              <h4 class="club-register-subtitle">2. Player list</h4>
+              <div class="club-register-table-wrap">
+                <table class="club-register-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">S/No</th>
+                      <th scope="col">Player photo</th>
+                      <th scope="col">Student / Staff Id</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Position</th>
+                      <th scope="col">Jersey No</th>
+                      <th scope="col">Role</th>
+                      <th scope="col">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="club-register-players-body"></tbody>
+                </table>
+              </div>
+              <div class="club-register-actions">
+                <button type="button" class="btn btn--muted" id="btn-add-player-row">Add player</button>
+              </div>
+            </div>
+
+            <div class="club-register-submit-wrap">
+              <button type="submit" class="btn btn--primary club-register-submit">Submit form</button>
+            </div>
+          </section>
         </form>
       </div>
     </dialog>

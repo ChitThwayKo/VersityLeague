@@ -19,7 +19,9 @@ class StoreLeagueRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'season' => ['required', 'string', 'max:100'],
+            'year' => ['required', 'string', 'max:100'],
+            'starts_on' => ['required', 'date'],
+            'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
             'status' => ['required', Rule::in(['active', 'inactive'])],
         ];
     }

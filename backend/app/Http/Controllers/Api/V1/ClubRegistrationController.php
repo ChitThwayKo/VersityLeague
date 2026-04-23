@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreClubRegistrationRequest;
 use App\Models\Club;
 use App\Models\Player;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ClubRegistrationController extends Controller
 {
@@ -18,32 +18,36 @@ class ClubRegistrationController extends Controller
 
         $clubPhotoPath = $request->file('club_photo')->store('clubs', 'public');
 
-        $playerPhotoPath = null;
-        if ($request->hasFile('player_photo')) {
-            $playerPhotoPath = $request->file('player_photo')->store('players', 'public');
-        }
-
-        [$club, $player] = DB::transaction(function () use ($request, $user, $clubPhotoPath, $playerPhotoPath) {
+        [$club, $players] = DB::transaction(function () use ($request, $user, $clubPhotoPath) {
             $validated = $request->validated();
 
             $club = Club::query()->create([
                 'manager_user_id' => $user->id,
-                'league_id' => null,
+                'league_id' => $validated['league_id'],
                 'club_name' => $validated['club_name'],
                 'club_photo' => $clubPhotoPath,
                 'status' => 'pending',
             ]);
 
-            $player = Player::query()->create([
-                'club_id' => $club->id,
-                'player_photo' => $playerPhotoPath,
-                'student_staff_id' => $validated['player_student_staff_id'],
-                'full_name' => $validated['player_full_name'],
-                'jersey_number' => $validated['jersey_number'] ?? null,
-                'position' => $validated['position'],
-            ]);
+            $players = [];
+            foreach ($validated['players'] as $index => $playerData) {
+                $playerPhotoPath = null;
+                if ($request->hasFile("players.$index.player_photo")) {
+                    $playerPhotoPath = $request->file("players.$index.player_photo")->store('players', 'public');
+                }
 
-            return [$club, $player];
+                $players[] = Player::query()->create([
+                    'club_id' => $club->id,
+                    'player_photo' => $playerPhotoPath,
+                    'student_staff_id' => $playerData['student_staff_id'],
+                    'full_name' => $playerData['full_name'],
+                    'jersey_number' => $playerData['jersey_number'] ?? null,
+                    'position' => $playerData['position'] ?? null,
+                    'role' => $playerData['role'],
+                ]);
+            }
+
+            return [$club, $players];
         });
 
         return response()->json([
@@ -52,16 +56,16 @@ class ClubRegistrationController extends Controller
                 'id' => $club->id,
                 'club_name' => $club->club_name,
                 'status' => $club->status,
-                'club_photo_url' => Storage::disk('public')->url($club->club_photo),
+                'club_photo_url' => PublicStorageUrl::url($club->club_photo),
             ],
-            'player' => [
+            'players' => array_map(static fn (Player $player): array => [
                 'id' => $player->id,
                 'full_name' => $player->full_name,
                 'student_staff_id' => $player->student_staff_id,
-                'player_photo_url' => $player->player_photo
-                    ? Storage::disk('public')->url($player->player_photo)
-                    : null,
-            ],
+                'role' => $player->role,
+                'position' => $player->position,
+                'player_photo_url' => PublicStorageUrl::url($player->player_photo),
+            ], $players),
         ], 201);
     }
 }

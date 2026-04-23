@@ -9,9 +9,22 @@ class League extends Model
 {
     protected $fillable = [
         'name',
-        'season',
+        'year',
+        'starts_on',
+        'ends_on',
         'status',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'starts_on' => 'date',
+            'ends_on' => 'date',
+        ];
+    }
 
     public function clubs(): HasMany
     {

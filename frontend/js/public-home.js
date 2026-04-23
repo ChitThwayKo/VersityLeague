@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./config.js";
-import { apiGet, formatApiErrors, getToken } from "./auth.js";
+import { apiGet, formatApiErrors, getToken, resolveBackendPublicFileUrl } from "./auth.js";
 import { initGalleryCarousel, openModalById } from "./ui.js";
 
 const BADGE_MOD = ["", "club-badge--alt", "club-badge--green", "club-badge--orange"];
@@ -80,8 +80,8 @@ function renderOverviewStrip(stRes, fxRes) {
 
   if (seasonEl) {
     if (stRes.ok && stRes.data.league) {
-      const L = /** @type {{name:string, season:string}} */ (stRes.data.league);
-      seasonEl.textContent = `${L.name} — ${L.season}`;
+      const L = /** @type {{name:string, year?:string, season?:string}} */ (stRes.data.league);
+      seasonEl.textContent = `${L.name} — ${String(L.year || L.season || "—")}`;
     } else {
       seasonEl.textContent = "—";
     }
@@ -243,7 +243,7 @@ function renderGallery(res) {
   track.innerHTML = photos
     .map(
       (p, i) => `<div class="gallery__slide" role="listitem">
-      <img src="${escapeHtml(p.image_url)}" alt="Gallery photo ${i + 1}" width="800" height="500" loading="lazy" />
+      <img src="${escapeHtml(resolveBackendPublicFileUrl(p.image_url))}" alt="Gallery photo ${i + 1}" width="800" height="500" loading="lazy" />
     </div>`,
     )
     .join("");
@@ -279,11 +279,11 @@ export async function openMatchDetailsModal(fixtureId) {
   }
 
   const f = /** @type {Record<string, unknown>} */ (res.data.fixture);
-  const league = f.league && /** @type {{name:string, season:string}} */ (f.league);
+  const league = f.league && /** @type {{name:string, year?:string, season?:string}} */ (f.league);
   const hn = f.home_club && /** @type {{club_name:string}} */ (f.home_club).club_name;
   const an = f.away_club && /** @type {{club_name:string}} */ (f.away_club).club_name;
 
-  setText("md-league", league ? `${league.name} — ${league.season}` : "—");
+  setText("md-league", league ? `${league.name} — ${String(league.year || league.season || "—")}` : "—");
   setText("md-teams", `${hn || "?"} vs ${an || "?"}`);
   setText("md-date", formatDate(String(f.match_date)));
   setText("md-time", formatTime(String(f.match_time)));

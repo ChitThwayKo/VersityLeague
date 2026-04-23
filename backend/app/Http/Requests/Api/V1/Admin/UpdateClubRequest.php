@@ -18,6 +18,12 @@ class UpdateClubRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'club_name' => [
+                'sometimes',
+                'string',
+                'max:255',
+                Rule::unique('clubs', 'club_name')->ignore($this->route('club')),
+            ],
             'status' => ['sometimes', Rule::in(['pending', 'approved', 'rejected'])],
             'league_id' => [
                 'nullable',

@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Admin\AdminClubController;
+use App\Http\Controllers\Api\V1\Admin\AdminCertificateController;
 use App\Http\Controllers\Api\V1\Admin\AdminFixtureController;
+use App\Http\Controllers\Api\V1\Admin\AdminFixturePlayerStatController;
 use App\Http\Controllers\Api\V1\Admin\AdminLeagueController;
 use App\Http\Controllers\Api\V1\Admin\AdminPhotoController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlayerController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\ClubRegistrationController;
 use App\Http\Controllers\Api\V1\PublicFixtureController;
+use App\Http\Controllers\Api\V1\PublicLeagueController;
 use App\Http\Controllers\Api\V1\PublicPhotoController;
 use App\Http\Controllers\Api\V1\PublicStandingController;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +34,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('/fixtures', [PublicFixtureController::class, 'index']);
     Route::get('/fixtures/{fixture}', [PublicFixtureController::class, 'show']);
+    Route::get('/leagues/active', [PublicLeagueController::class, 'active']);
     Route::get('/standings', [PublicStandingController::class, 'index']);
     Route::get('/photos', [PublicPhotoController::class, 'index']);
 
@@ -41,6 +45,8 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware(['admin', 'default_admin'])->prefix('admin')->group(function (): void {
             Route::get('/users', [AdminUserController::class, 'index']);
             Route::post('/users', [AdminUserController::class, 'store']);
+            Route::patch('/users/{user}', [AdminUserController::class, 'update']);
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
         });
 
         Route::middleware(['admin'])->prefix('admin')->group(function (): void {
@@ -52,6 +58,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/clubs', [AdminClubController::class, 'index']);
             Route::get('/clubs/{club}', [AdminClubController::class, 'show']);
             Route::patch('/clubs/{club}', [AdminClubController::class, 'update']);
+            Route::delete('/clubs/{club}', [AdminClubController::class, 'destroy']);
 
             Route::get('/clubs/{club}/players', [AdminPlayerController::class, 'index']);
             Route::post('/clubs/{club}/players', [AdminPlayerController::class, 'store']);
@@ -62,11 +69,20 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/fixtures', [AdminFixtureController::class, 'store']);
             Route::patch('/fixtures/{fixture}', [AdminFixtureController::class, 'update']);
             Route::delete('/fixtures/{fixture}', [AdminFixtureController::class, 'destroy']);
+            Route::get('/fixtures/{fixture}/player-stats', [AdminFixturePlayerStatController::class, 'index']);
+            Route::post('/fixtures/{fixture}/player-stats', [AdminFixturePlayerStatController::class, 'store']);
+            Route::patch('/fixture-player-stats/{fixturePlayerStat}', [AdminFixturePlayerStatController::class, 'update']);
+            Route::delete('/fixture-player-stats/{fixturePlayerStat}', [AdminFixturePlayerStatController::class, 'destroy']);
 
             Route::get('/photos', [AdminPhotoController::class, 'index']);
             Route::post('/photos', [AdminPhotoController::class, 'store']);
             Route::patch('/photos/{photo}', [AdminPhotoController::class, 'update']);
             Route::delete('/photos/{photo}', [AdminPhotoController::class, 'destroy']);
+
+            Route::get('/standings', [PublicStandingController::class, 'index']);
+            Route::get('/certificates', [AdminCertificateController::class, 'index']);
+            Route::get('/certificates/{certificate}/pdf', [AdminCertificateController::class, 'pdf']);
+
         });
 
         Route::post('/club-registrations', [ClubRegistrationController::class, 'store'])

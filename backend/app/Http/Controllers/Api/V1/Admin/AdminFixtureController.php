@@ -19,7 +19,7 @@ class AdminFixtureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Fixture::query()
-            ->with(['league:id,name,season', 'homeClub:id,club_name', 'awayClub:id,club_name'])
+            ->with(['league:id,name,year,starts_on,ends_on', 'homeClub:id,club_name', 'awayClub:id,club_name'])
             ->orderBy('match_date')
             ->orderBy('match_time');
 
@@ -88,7 +88,13 @@ class AdminFixtureController extends Controller
             'created_at' => $fixture->created_at,
             'updated_at' => $fixture->updated_at,
             'league' => $fixture->relationLoaded('league') && $fixture->league
-                ? ['id' => $fixture->league->id, 'name' => $fixture->league->name, 'season' => $fixture->league->season]
+                ? [
+                    'id' => $fixture->league->id,
+                    'name' => $fixture->league->name,
+                    'year' => $fixture->league->year,
+                    'starts_on' => $fixture->league->starts_on?->format('Y-m-d'),
+                    'ends_on' => $fixture->league->ends_on?->format('Y-m-d'),
+                ]
                 : null,
             'home_club' => $fixture->relationLoaded('homeClub') && $fixture->homeClub
                 ? ['id' => $fixture->homeClub->id, 'club_name' => $fixture->homeClub->club_name]

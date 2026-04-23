@@ -19,7 +19,9 @@ class StandingsRecalculationTest extends TestCase
     {
         $league = League::query()->create([
             'name' => 'Test League',
-            'season' => '2026',
+            'year' => '2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
             'status' => 'active',
         ]);
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4/backend/public" />
-    <title>Versity League — Admin</title>
+    <title>Versity League — Admin Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,40 +12,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/admin.css" />
-    <!-- If login fails: edit versity-api-base meta above, or set window.VERSITY_API_BASE_URL before the module script. -->
   </head>
   <body>
-    <div id="admin-login" class="admin-login">
-      <div class="admin-login__card">
-        <h1>Admin sign in</h1>
-        <p>Sign in with any account. Clients go to public view; admins go to admin dashboard.</p>
-        <div id="login-alert" class="admin-alert admin-alert--error" hidden></div>
-        <form id="form-login" method="post" action="#" onsubmit="return false">
-          <label class="field">
-            <span class="field__label">Email</span>
-            <input type="email" name="email" required autocomplete="username" />
-          </label>
-          <label class="field">
-            <span class="field__label">Password</span>
-            <input type="password" name="password" required autocomplete="current-password" />
-          </label>
-          <button
-            type="button"
-            class="btn btn--primary"
-            id="btn-admin-login"
-            onclick="window.__versityAdminLogin && window.__versityAdminLogin()"
-            style="width: 100%; margin-top: 0.5rem"
-          >
-            Sign in
-          </button>
-        </form>
-        <p class="admin-muted" style="margin-top: 1rem">
-          <a href="../index.html">← Public site</a>
-        </p>
-      </div>
-    </div>
-
-    <div id="admin-app" class="admin-app">
+    <div id="admin-app" class="admin-app is-visible">
       <header class="admin-topbar">
         <div class="admin-topbar__brand">
           <img src="../../img/UniLogo.png?v=20260413" alt="" width="40" height="40" />
@@ -99,7 +68,7 @@
                   <option value="active">active</option>
                 </select>
               </label>
-              <button type="submit" class="btn btn--primary">Create season</button>
+              <button type="submit" class="btn btn--primary">Create</button>
             </form>
             <div class="admin-table-wrap">
               <table class="admin-table" id="table-leagues">
@@ -153,37 +122,6 @@
 
           <section id="panel-players" class="admin-panel">
             <h2>Player list</h2>
-            <div class="admin-form-row">
-              <label class="field">
-                <span class="field__label">Club</span>
-                <select id="player-club-select"></select>
-              </label>
-              <button type="button" class="btn btn--primary" id="btn-players-load">Load players</button>
-            </div>
-            <form id="form-player-create" class="admin-form-row" style="margin-top: 1rem">
-              <input type="hidden" name="club_id" id="player-form-club-id" />
-              <label class="field">
-                <span class="field__label">Full name</span>
-                <input type="text" name="full_name" required maxlength="255" />
-              </label>
-              <label class="field">
-                <span class="field__label">Student / staff ID</span>
-                <input type="text" name="student_staff_id" required maxlength="100" />
-              </label>
-              <label class="field">
-                <span class="field__label">Position</span>
-                <input type="text" name="position" required maxlength="100" />
-              </label>
-              <label class="field">
-                <span class="field__label">Jersey #</span>
-                <input type="number" name="jersey_number" min="0" max="99999" />
-              </label>
-              <label class="field">
-                <span class="field__label">Photo</span>
-                <input type="file" name="player_photo" accept="image/*" />
-              </label>
-              <button type="submit" class="btn btn--primary">Add player</button>
-            </form>
             <div class="admin-table-wrap" style="margin-top: 1rem">
               <table class="admin-table" id="table-players">
                 <thead>
@@ -271,6 +209,46 @@
                 <tbody></tbody>
               </table>
             </div>
+            <div class="admin-form-row" style="margin-top: 1rem; align-items: end">
+              <label class="field">
+                <span class="field__label">Fixture for stats</span>
+                <select id="fixture-stats-fixture"></select>
+              </label>
+              <label class="field">
+                <span class="field__label">Player</span>
+                <select id="fixture-stats-player"></select>
+              </label>
+              <label class="field">
+                <span class="field__label">Stat type</span>
+                <select id="fixture-stats-type">
+                  <option value="participant">participant</option>
+                  <option value="goal">goal</option>
+                  <option value="assist">assist</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field__label">No. of goal/assist</span>
+                <input type="number" id="fixture-stats-count" min="1" max="100" value="1" />
+              </label>
+              <button type="button" class="btn btn--primary" id="btn-fixture-stat-add">Add stat</button>
+              <button type="button" class="btn btn--ghost" id="btn-fixture-stat-load">Load stats</button>
+            </div>
+            <div class="admin-table-wrap" style="margin-top: 1rem">
+              <table class="admin-table" id="table-fixture-stats">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Player</th>
+                    <th>Club</th>
+                    <th>No. of goal/assist</th>
+                    <th>Edit</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </section>
 
           <section id="panel-photos" class="admin-panel">
@@ -283,6 +261,10 @@
               </label>
               <button type="submit" class="btn btn--primary">Upload</button>
             </form>
+            <div id="photo-upload-preview-wrap" class="admin-muted" style="margin-top: 0.75rem" hidden>
+              <p style="margin: 0 0 0.5rem">Preview before save</p>
+              <img id="photo-upload-preview" alt="Upload preview" style="max-width: 220px; border-radius: 10px" />
+            </div>
             <div class="admin-table-wrap" style="margin-top: 1rem">
               <table class="admin-table" id="table-photos">
                 <thead>
@@ -364,59 +346,35 @@
 
           <section id="panel-users" class="admin-panel">
             <h2>User list</h2>
-            <p class="admin-muted">Only the default administrator can list accounts and create new admins.</p>
-            <form id="form-admin-create" class="admin-form-row" style="flex-direction: column">
-              <div class="admin-form-row">
-                <label class="field">
-                  <span class="field__label">Name</span>
-                  <input type="text" name="name" required maxlength="255" />
-                </label>
-                <label class="field">
-                  <span class="field__label">Email</span>
-                  <input type="email" name="email" required />
-                </label>
-                <label class="field">
-                  <span class="field__label">Student / staff ID</span>
-                  <input type="text" name="student_staff_id" required maxlength="100" />
-                </label>
-              </div>
-              <div class="admin-form-row">
-                <label class="field">
-                  <span class="field__label">Password</span>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    minlength="8"
-                    pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
-                    title="At least 8 characters, including uppercase, lowercase, number, and special character."
-                  />
-                </label>
-                <label class="field">
-                  <span class="field__label">Confirm</span>
-                  <input
-                    type="password"
-                    name="password_confirmation"
-                    required
-                    minlength="8"
-                    pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
-                    title="At least 8 characters, including uppercase, lowercase, number, and special character."
-                  />
-                </label>
-                <button type="submit" class="btn btn--primary">Create admin</button>
-              </div>
-              <p class="admin-muted">
-                Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
-              </p>
-            </form>
-            <div class="admin-table-wrap" style="margin-top: 1rem">
-              <table class="admin-table" id="table-users">
+            <h3 style="margin-top: 1rem">Admin users</h3>
+            <div class="admin-table-wrap" style="margin-top: 0.75rem">
+              <table class="admin-table" id="table-users-admin">
                 <thead>
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Student / staff ID</th>
                     <th>Role</th>
+                    <th>Created</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3 style="margin-top: 1rem">Client users</h3>
+            <div class="admin-table-wrap" style="margin-top: 0.75rem">
+              <table class="admin-table" id="table-users-client">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Student / staff ID</th>
+                    <th>Linked club</th>
+                    <th>Created</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -427,15 +385,33 @@
       </div>
     </div>
 
+    <script>
+      window.VERSITY_ADMIN_DASHBOARD_ONLY = true;
+    </script>
     <script src="js/admin.js?v=20260415d" type="module"></script>
     <script>
+      // Fallback panel switcher if module fails to boot.
+      document.getElementById("admin-nav")?.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-panel]");
+        if (!btn) return;
+        const panel = btn.getAttribute("data-panel");
+        if (!panel) return;
+        document.querySelectorAll(".admin-nav button[data-panel]").forEach((b) => {
+          b.classList.toggle("is-active", b === btn);
+        });
+        document.querySelectorAll(".admin-panel").forEach((p) => {
+          p.classList.toggle("is-active", p.id === `panel-${panel}`);
+        });
+      });
+
       window.setTimeout(() => {
         if (window.__VERSITY_ADMIN_BOOTED) return;
-        const alert = document.getElementById("login-alert");
+        const alert = document.getElementById("global-alert");
         if (!alert) return;
         alert.textContent =
-          "Admin script did not load. Hard refresh (Ctrl+F5). If still failing, open browser console and share the first red error.";
+          "Admin dashboard script did not load. Open browser console and share the first red error.";
         alert.hidden = false;
+        alert.classList.add("admin-alert--error");
       }, 1200);
     </script>
   </body>

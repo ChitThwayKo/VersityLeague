@@ -1,5 +1,56 @@
 import { API_BASE_URL } from "./config.js";
 
+/**
+ * Rewrites Laravel `public` disk URLs so assets load from the same host/path as `API_BASE_URL`.
+ * Laravel builds `Storage::url()` using `APP_URL` + `/storage`, which is often `http://127.0.0.1:8000/...`
+ * while the browser uses XAMPP on `:8080` — the browser then gets `ERR_CONNECTION_REFUSED`.
+ * Only rewrites URLs whose host is `localhost` / `127.0.0.1` or port `8000`, so production CDN URLs stay untouched.
+ *
+ * @param {unknown} rawUrl
+ * @returns {string}
+ */
+export function resolveBackendPublicFileUrl(rawUrl) {
+  if (typeof rawUrl !== "string") return "";
+  const input = rawUrl.trim();
+  if (!input) return "";
+
+  try {
+    const api = new URL(API_BASE_URL);
+    const publicRoot = `${api.origin}${api.pathname.replace(/\/$/, "")}`;
+
+    const underPublic = (/** @type {string} */ path) => {
+      const p = path.startsWith("/") ? path : `/${path}`;
+      return `${publicRoot}${p}`;
+    };
+
+    if (input.startsWith("//")) {
+      return resolveBackendPublicFileUrl(`${api.protocol}${input}`);
+    }
+
+    if (/^https?:\/\//i.test(input)) {
+      const u = new URL(input);
+      const p = u.pathname.replace(/\\/g, "/");
+      const storageIdx = p.indexOf("/storage/");
+      if (storageIdx === -1) return input;
+      const storagePath = p.slice(storageIdx);
+      const candidate = underPublic(storagePath);
+      if (candidate === input) return input;
+      const localLike =
+        u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.port === "8000";
+      if (!localLike) return input;
+      return candidate;
+    }
+
+    if (input.startsWith("/storage/") || input === "/storage") {
+      return underPublic(input === "/storage" ? "/storage/" : input);
+    }
+
+    return input;
+  } catch {
+    return typeof rawUrl === "string" ? rawUrl : "";
+  }
+}
+
 const TOKEN_KEY = "versity_auth_token";
 
 export function getToken() {

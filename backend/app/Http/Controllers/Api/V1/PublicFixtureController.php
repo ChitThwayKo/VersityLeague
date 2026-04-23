@@ -15,7 +15,7 @@ class PublicFixtureController extends Controller
         $leagueId = $this->resolveLeagueId($request);
 
         $query = Fixture::query()
-            ->with(['league:id,name,season', 'homeClub:id,club_name,club_photo', 'awayClub:id,club_name,club_photo'])
+            ->with(['league:id,name,year,starts_on,ends_on', 'homeClub:id,club_name,club_photo', 'awayClub:id,club_name,club_photo'])
             ->whereIn('status', ['upcoming', 'finished', 'postponed'])
             ->orderBy('match_date')
             ->orderBy('match_time');
@@ -31,7 +31,7 @@ class PublicFixtureController extends Controller
 
     public function show(Fixture $fixture): JsonResponse
     {
-        $fixture->load(['league:id,name,season', 'homeClub:id,club_name,club_photo', 'awayClub:id,club_name,club_photo']);
+        $fixture->load(['league:id,name,year,starts_on,ends_on', 'homeClub:id,club_name,club_photo', 'awayClub:id,club_name,club_photo']);
 
         return response()->json(['fixture' => $this->serializeFixture($fixture)]);
     }
@@ -67,7 +67,13 @@ class PublicFixtureController extends Controller
             'away_score' => $fixture->away_score,
             'status' => $fixture->status,
             'league' => $fixture->relationLoaded('league') && $fixture->league
-                ? ['id' => $fixture->league->id, 'name' => $fixture->league->name, 'season' => $fixture->league->season]
+                ? [
+                    'id' => $fixture->league->id,
+                    'name' => $fixture->league->name,
+                    'year' => $fixture->league->year,
+                    'starts_on' => $fixture->league->starts_on?->format('Y-m-d'),
+                    'ends_on' => $fixture->league->ends_on?->format('Y-m-d'),
+                ]
                 : null,
             'home_club' => $fixture->relationLoaded('homeClub') && $fixture->homeClub
                 ? ['id' => $fixture->homeClub->id, 'club_name' => $fixture->homeClub->club_name]

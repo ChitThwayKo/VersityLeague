@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('leagues', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
-            $table->string('season', 100);
+            $table->string('year', 100);
             $table->enum('status', ['active', 'inactive'])->default('inactive');
             $table->timestamps();
         });

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\Admin\StoreAdminPlayerRequest;
 use App\Http\Requests\Api\V1\Admin\UpdateAdminPlayerRequest;
 use App\Models\Club;
 use App\Models\Player;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 
@@ -80,9 +81,7 @@ class AdminPlayerController extends Controller
             'jersey_number' => $player->jersey_number,
             'position' => $player->position,
             'player_photo' => $player->player_photo,
-            'player_photo_url' => $player->player_photo
-                ? Storage::disk('public')->url($player->player_photo)
-                : null,
+            'player_photo_url' => PublicStorageUrl::url($player->player_photo),
             'created_at' => $player->created_at,
             'updated_at' => $player->updated_at,
         ];

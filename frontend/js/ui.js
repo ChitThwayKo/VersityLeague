@@ -101,6 +101,35 @@ export function openModalById(id) {
   }
 }
 
+export function initPasswordToggles() {
+  const fields = document.querySelectorAll('input[type="password"]');
+  fields.forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    if (input.dataset.pwToggleBound === "1") return;
+    input.dataset.pwToggleBound = "1";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "password-field";
+    input.parentNode?.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "password-toggle";
+    toggle.setAttribute("aria-label", "Show password");
+    toggle.setAttribute("title", "Show password");
+    toggle.innerHTML = "&#128065;";
+    wrapper.appendChild(toggle);
+
+    toggle.addEventListener("click", () => {
+      const revealing = input.type === "password";
+      input.type = revealing ? "text" : "password";
+      toggle.setAttribute("aria-label", revealing ? "Hide password" : "Show password");
+      toggle.setAttribute("title", revealing ? "Hide password" : "Show password");
+    });
+  });
+}
+
 export function initGalleryCarousel() {
   const track = document.querySelector(".gallery__track");
   const prev = document.querySelector("[data-gallery-prev]");

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Fixture extends Model
 {
@@ -39,5 +40,10 @@ class Fixture extends Model
     public function awayClub(): BelongsTo
     {
         return $this->belongsTo(Club::class, 'away_club_id');
+    }
+
+    public function playerStats(): HasMany
+    {
+        return $this->hasMany(FixturePlayerStat::class);
     }
 }

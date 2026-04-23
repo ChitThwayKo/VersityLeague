@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Admin\StorePhotoRequest;
 use App\Http\Requests\Api\V1\Admin\UpdatePhotoRequest;
 use App\Models\Photo;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 
@@ -67,7 +68,7 @@ class AdminPhotoController extends Controller
         return [
             'id' => $photo->id,
             'image_path' => $photo->image_path,
-            'image_url' => Storage::disk('public')->url($photo->image_path),
+            'image_url' => PublicStorageUrl::url($photo->image_path),
             'created_at' => $photo->created_at,
             'updated_at' => $photo->updated_at,
         ];

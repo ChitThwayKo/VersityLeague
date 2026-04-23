@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\League;
 use App\Models\Standing;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class PublicStandingController extends Controller
 {
@@ -47,7 +47,7 @@ class PublicStandingController extends Controller
         $standings = $rows->map(function (Standing $row, int $index) {
             $club = $row->club;
             $photoUrl = $club && $club->club_photo
-                ? Storage::disk('public')->url($club->club_photo)
+                ? PublicStorageUrl::url($club->club_photo)
                 : null;
 
             return [
@@ -67,7 +67,13 @@ class PublicStandingController extends Controller
         });
 
         return response()->json([
-            'league' => $league ? ['id' => $league->id, 'name' => $league->name, 'season' => $league->season] : null,
+            'league' => $league ? [
+                'id' => $league->id,
+                'name' => $league->name,
+                'year' => $league->year,
+                'starts_on' => $league->starts_on?->format('Y-m-d'),
+                'ends_on' => $league->ends_on?->format('Y-m-d'),
+            ] : null,
             'standings' => $standings,
         ]);
     }

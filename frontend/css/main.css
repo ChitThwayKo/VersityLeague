@@ -1063,6 +1063,10 @@ dialog.modal--wide {
   width: min(100% - 2rem, 720px);
 }
 
+dialog.modal--club-register {
+  width: min(100% - 2rem, 980px);
+}
+
 .modal__panel {
   background: var(--cream);
   color: var(--text);
@@ -1195,6 +1199,43 @@ dialog.modal--wide {
   border-color: var(--navy-mid);
 }
 
+.password-field {
+  position: relative;
+  width: 100%;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--navy-mid);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  background: rgba(21, 33, 84, 0.08);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
 /* Sign-in portal: two-option slide / segmented control (matches .btn--primary) */
 .portal-slide__wrap {
   position: relative;
@@ -1274,6 +1315,228 @@ dialog.modal--wide {
   background: var(--cream-muted);
   padding: 0.1rem 0.25rem;
   border-radius: 4px;
+}
+
+.club-register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.club-register-card {
+  border: 2px solid var(--gold);
+  border-radius: 2.5rem;
+  padding: 1.25rem 1rem 1.5rem;
+  background: #f7f6f3;
+}
+
+.club-register-title {
+  margin: 0 0 1rem;
+  font-family: var(--font-head);
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.club-register-subtitle {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-head);
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.club-register-club-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.club-logo-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.club-logo-picker input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.club-logo-picker__box {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 12px;
+  border: 1px solid #9fa0a6;
+  background: #d7d7d9;
+  color: #0d0f14;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.club-logo-picker__plus {
+  display: inline-flex;
+}
+
+.club-logo-picker__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.club-logo-picker__label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.club-register-club-fields {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.field--inline {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.field--inline .field__label {
+  margin: 0;
+}
+
+.club-register-divider {
+  height: 2px;
+  margin: 1.1rem 0;
+  background: rgba(252, 187, 60, 0.9);
+}
+
+.club-register-table-wrap {
+  overflow-x: auto;
+}
+
+.club-register-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+  background: var(--white);
+  border: 1px solid #bbbcc4;
+}
+
+.club-register-table th,
+.club-register-table td {
+  border: 1px solid #bbbcc4;
+  padding: 0.35rem;
+  font-size: 0.72rem;
+  vertical-align: middle;
+}
+
+.club-register-table th {
+  background: #efefef;
+  color: var(--navy);
+  white-space: nowrap;
+}
+
+.club-register-table input,
+.club-register-table select {
+  width: 100%;
+  min-width: 6rem;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.35rem;
+}
+
+.club-register-photo-cell {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.club-register-photo-preview {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid #bbbcc4;
+  background: #f2f2f2;
+  object-fit: cover;
+}
+
+.club-register-photo-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid #bbbcc4;
+  background: #ececf1;
+  color: #4c4e57;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.club-register-row-btn {
+  width: 100%;
+  min-width: 4.4rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.66rem;
+}
+
+.club-register-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.club-register-row-icon-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  font-size: 0.92rem;
+  line-height: 1;
+  border-radius: 8px;
+}
+
+.club-register-actions {
+  margin-top: 0.65rem;
+}
+
+.club-register-submit-wrap {
+  margin-top: 1.4rem;
+  display: flex;
+  justify-content: center;
+}
+
+.club-register-submit {
+  width: min(100%, 24rem);
+}
+
+@media (max-width: 640px) {
+  .club-register-card {
+    border-radius: 1.5rem;
+    padding: 1rem 0.75rem 1.2rem;
+  }
+
+  .club-register-club-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field--inline {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
 }
 
 .detail-list {

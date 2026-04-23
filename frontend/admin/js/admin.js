@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../js/config.js";
 import {
   apiDelete,
   apiGet,
@@ -8,15 +9,51 @@ import {
   clearToken,
   formatApiErrors,
   getToken,
+  resolveBackendPublicFileUrl,
   setToken,
 } from "../../js/auth.js";
+import { initPasswordToggles } from "../../js/ui.js";
 
-/** @type {{ id: number; name: string; season: string; status: string }[]} */
+if (typeof window !== "undefined") {
+  window.__VERSITY_ADMIN_BOOTED = false;
+}
+
+/** @type {{ id: number; name: string; year: string; starts_on?: string | null; ends_on?: string | null; status: string }[]} */
 let leaguesCache = [];
+let editingLeagueId = null;
+let editingUserKey = null;
+let editingClubId = null;
 /** @type {Record<string, unknown>[]} */
 let clubsCache = [];
+/** @type {Record<string, unknown>[]} */
+let fixturesCache = [];
+/** @type {Record<string, unknown>[]} */
+let playersCache = [];
+/** @type {Record<string, unknown>[]} */
+let fixtureStatsRows = [];
+let editingFixtureStatId = null;
 /** @type {{ name: string; role: string } | null} */
 let currentUser = null;
+
+/** @type {Record<string, unknown>[]} */
+let standingsRows = [];
+let standingsSortKey = "rank";
+let standingsSortDir = 1;
+
+/** @type {Record<string, unknown>[]} */
+let certificatesRaw = [];
+let certSortKey = "title";
+let certSortDir = 1;
+
+function getPasswordRequirementIssue(password) {
+  const value = String(password || "");
+  if (value.length < 8) return "Password must be at least 8 characters.";
+  if (!/[A-Z]/.test(value)) return "Password must include at least one capital letter.";
+  if (!/[a-z]/.test(value)) return "Password must include at least one small letter.";
+  if (!/[0-9]/.test(value)) return "Password must include at least one number.";
+  if (!/[^A-Za-z0-9]/.test(value)) return "Password must include at least one special character.";
+  return "";
+}
 
 function showGlobalAlert(message, variant = "error") {
   const el = document.getElementById("global-alert");
@@ -41,12 +78,52 @@ function isAdminRole(role) {
   return role === "admin" || role === "default_admin";
 }
 
+function isDashboardOnlyMode() {
+  return typeof window !== "undefined" && Boolean(window.VERSITY_ADMIN_DASHBOARD_ONLY);
+}
+
+function resolvePublicHomeUrl() {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      const m = new URL(import.meta.url);
+      const p = m.pathname.replace(/\\/g, "/");
+      if (/\/frontend\/admin\/js\/admin\.js$/i.test(p)) {
+        m.pathname = p.replace(/\/frontend\/admin\/js\/admin\.js$/i, "/frontend/index.html");
+        m.search = "";
+        m.hash = "";
+        return m.toString();
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return new URL("../index.html", window.location.href).toString();
+}
+
+function resolveAdminDashboardUrl() {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      const m = new URL(import.meta.url);
+      const p = m.pathname.replace(/\\/g, "/");
+      if (/\/frontend\/admin\/js\/admin\.js$/i.test(p)) {
+        m.pathname = p.replace(/\/frontend\/admin\/js\/admin\.js$/i, "/frontend/admin/adminDashboard.html");
+        m.search = "";
+        m.hash = "";
+        return m.toString();
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return new URL("index.html", window.location.href).toString();
+}
+
 async function loadMe() {
   const { ok, data } = await apiGet("/api/v1/auth/me", { auth: true });
-  if (!ok || !data.user || !isAdminRole(/** @type {{role:string}} */ (data.user).role)) {
+  if (!ok || !data.user) {
     return null;
   }
-  return /** @type {{ id: number; name: string; email: string; role: string }} */ (data.user);
+  return /** @type {{ id: number; name: string; email: string; role: string } | null } */ (data.user);
 }
 
 function setPanel(name) {
@@ -64,7 +141,7 @@ function leagueOptionsHtml(selectedId) {
       (l) =>
         `<option value="${l.id}" ${String(l.id) === String(selectedId) ? "selected" : ""}>${escapeHtml(
           l.name,
-        )} (${escapeHtml(l.season)})</option>`,
+        )} (${escapeHtml(l.year)})</option>`,
     )
     .join("");
 }
@@ -77,10 +154,31 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;");
 }
 
+function toDateTimeText(v) {
+  if (!v) return "—";
+  const d = new Date(String(v));
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString();
+}
+
+/** @param {string | null | undefined} iso */
+function leagueDateForInput(iso) {
+  if (!iso) return "";
+  const s = String(iso);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
+/** @param {string | null | undefined} iso */
+function leagueDateDisplay(iso) {
+  if (!iso) return "—";
+  const s = String(iso);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 async function refreshLeagues() {
-  const { ok, data } = await apiGet("/api/v1/admin/leagues", { auth: true });
+  const { ok, data, status } = await apiGet("/api/v1/admin/leagues", { auth: true });
   if (!ok) {
-    showGlobalAlert(formatApiErrors(data));
+    showGlobalAlert(formatApiErrors(data, { status }));
     return;
   }
   leaguesCache = /** @type {typeof leaguesCache} */ (data.leagues || []);
@@ -88,22 +186,52 @@ async function refreshLeagues() {
   if (!tbody) return;
   tbody.innerHTML = leaguesCache
     .map(
-      (l) => `
+      (l) => {
+        const isEditing = String(editingLeagueId) === String(l.id);
+        return `
       <tr data-league-id="${l.id}">
         <td>${l.id}</td>
-        <td><input type="text" class="inp-league-name" value="${escapeHtml(l.name)}" /></td>
-        <td><input type="text" class="inp-league-season" value="${escapeHtml(l.season)}" /></td>
+        <td>${
+          isEditing
+            ? `<input type="text" class="inp-league-name" value="${escapeHtml(l.name)}" />`
+            : escapeHtml(l.name)
+        }</td>
+        <td>${
+          isEditing
+            ? `<input type="text" class="inp-league-year" value="${escapeHtml(l.year)}" />`
+            : escapeHtml(l.year)
+        }</td>
+        <td>${
+          isEditing
+            ? `<input type="date" class="inp-league-starts" value="${escapeHtml(leagueDateForInput(l.starts_on))}" />`
+            : escapeHtml(leagueDateDisplay(l.starts_on))
+        }</td>
+        <td>${
+          isEditing
+            ? `<input type="date" class="inp-league-ends" value="${escapeHtml(leagueDateForInput(l.ends_on))}" />`
+            : escapeHtml(leagueDateDisplay(l.ends_on))
+        }</td>
+        <td>${
+          isEditing
+            ? `<select class="inp-league-status">
+                <option value="inactive" ${l.status === "inactive" ? "selected" : ""}>inactive</option>
+                <option value="active" ${l.status === "active" ? "selected" : ""}>active</option>
+              </select>`
+            : escapeHtml(l.status)
+        }</td>
         <td>
-          <select class="inp-league-status">
-            <option value="inactive" ${l.status === "inactive" ? "selected" : ""}>inactive</option>
-            <option value="active" ${l.status === "active" ? "selected" : ""}>active</option>
-          </select>
+          ${
+            isEditing
+              ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-league-save" title="Save" aria-label="Save">&#128190;</button>
+                 <button type="button" class="btn btn--ghost btn--sm btn-league-cancel">Cancel</button>`
+              : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-league-edit" title="Edit" aria-label="Edit">&#9998;</button>`
+          }
+          <button type="button" class="btn btn--danger btn--sm btn--icon btn-league-del" title="Delete" aria-label="Delete">
+            &#128465;
+          </button>
         </td>
-        <td>
-          <button type="button" class="btn btn--primary btn--sm btn-league-save">Save</button>
-          <button type="button" class="btn btn--danger btn--sm btn-league-del">Delete</button>
-        </td>
-      </tr>`,
+      </tr>`;
+      },
     )
     .join("");
 
@@ -125,40 +253,66 @@ async function refreshClubs() {
   const tbody = document.querySelector("#table-clubs tbody");
   if (!tbody) return;
 
-  const leagueOpts = `<option value="">Select league…</option>` + leagueOptionsHtml("");
-
   tbody.innerHTML = clubsCache
     .map((c) => {
+      const id = c.id;
+      const leagueIdSel = String(c.league_id ?? "");
+      const isEditing = editingClubId !== null && Number(editingClubId) === Number(id);
       const manager = c.manager && typeof c.manager === "object" ? /** @type {{email:string}} */ (c.manager).email : "—";
-      const pending =
-        c.status === "pending"
-          ? `<select class="club-pick-league" data-club="${c.id}">${leagueOpts}</select>
-             <button type="button" class="btn btn--primary btn--sm btn-club-approve" data-club="${c.id}">Approve</button>
-             <button type="button" class="btn btn--danger btn--sm btn-club-reject" data-club="${c.id}">Reject</button>`
-          : `<span class="admin-muted">${escapeHtml(String(c.status))}</span>`;
-      const photo =
-        typeof c.club_photo_url === "string"
-          ? `<img class="thumb" src="${escapeHtml(c.club_photo_url)}" alt="" />`
-          : "";
-      return `<tr>
-        <td>${c.id}</td>
-        <td>${photo} ${escapeHtml(String(c.club_name))}</td>
-        <td>${escapeHtml(String(c.status))}</td>
+      const logoUrl = resolveBackendPublicFileUrl(typeof c.club_photo_url === "string" ? c.club_photo_url : "");
+      const photo = logoUrl
+        ? `<img class="thumb" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(String(c.club_name ?? "Club"))} logo" loading="lazy" />`
+        : `<span class="admin-muted">—</span>`;
+
+      const nameCell = isEditing
+        ? `<input type="text" class="inp-club-name" value="${escapeHtml(String(c.club_name ?? ""))}" />`
+        : escapeHtml(String(c.club_name ?? ""));
+
+      const statusCell = isEditing
+        ? `<select class="inp-club-status">
+            <option value="pending" ${c.status === "pending" ? "selected" : ""}>pending</option>
+            <option value="approved" ${c.status === "approved" ? "selected" : ""}>approved</option>
+            <option value="rejected" ${c.status === "rejected" ? "selected" : ""}>rejected</option>
+          </select>`
+        : escapeHtml(String(c.status ?? ""));
+
+      let actionsHtml = "";
+      if (isEditing) {
+        actionsHtml = `<select class="inp-club-league"><option value="">— none —</option>${leagueOptionsHtml(
+          leagueIdSel,
+        )}</select>
+          <button type="button" class="btn btn--primary btn--sm btn--icon btn-club-save" title="Save" aria-label="Save">&#128190;</button>
+          <button type="button" class="btn btn--ghost btn--sm btn-club-cancel">Cancel</button>`;
+      } else {
+        if (c.status === "pending") {
+          actionsHtml += `<select class="club-pick-league"><option value="">Select league…</option>${leagueOptionsHtml(
+            leagueIdSel,
+          )}</select>
+            <button type="button" class="btn btn--primary btn--sm btn-club-approve">Approve</button>
+            <button type="button" class="btn btn--danger btn--sm btn-club-reject">Reject</button>`;
+        }
+        actionsHtml += `<button type="button" class="btn btn--primary btn--sm btn--icon btn-club-edit" title="Edit" aria-label="Edit">&#9998;</button>
+          <button type="button" class="btn btn--danger btn--sm btn--icon btn-club-del" title="Delete" aria-label="Delete">&#128465;</button>`;
+      }
+
+      return `<tr data-club-id="${id}">
+        <td>${id}</td>
+        <td>${photo}</td>
+        <td>${nameCell}</td>
+        <td>${statusCell}</td>
         <td>${escapeHtml(manager)}</td>
         <td>${c.players_count ?? "—"}</td>
-        <td>${pending}</td>
+        <td>${actionsHtml}</td>
       </tr>`;
     })
     .join("");
 
-  const sel = document.getElementById("player-club-select");
-  if (sel) {
-    sel.innerHTML = clubsCache
-      .map((c) => `<option value="${c.id}">${escapeHtml(String(c.club_name))} (${escapeHtml(String(c.status))})</option>`)
-      .join("");
-  }
-
   populateFixtureClubSelectors();
+  playersCache = clubsCache.flatMap((c) =>
+    Array.isArray(c.players) ? c.players : [],
+  );
+  renderPlayersTableFromCache();
+  syncFixtureStatSelectors();
 }
 
 function approvedClubs() {
@@ -176,16 +330,63 @@ function populateFixtureClubSelectors() {
   away.innerHTML = opts;
 }
 
+function renderPlayersTableFromCache() {
+  const tbody = document.querySelector("#table-players tbody");
+  if (!tbody) return;
+
+  const rows = [];
+  for (const club of clubsCache) {
+    const players = Array.isArray(club.players) ? club.players : [];
+    const seasonText =
+      club.league && typeof club.league === "object"
+        ? [club.league.name, club.league.year].filter(Boolean).join(" ")
+        : "—";
+    for (const p of players) {
+      rows.push({
+        id: p.id,
+        full_name: p.full_name,
+        student_staff_id: p.student_staff_id,
+        position: p.position,
+        goals_count: Number(p.goals_count ?? 0),
+        assists_count: Number(p.assists_count ?? 0),
+        club_name: club.club_name,
+        year: seasonText,
+      });
+    }
+  }
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="admin-muted">No players found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows
+    .map(
+      (p) => `<tr>
+      <td>${p.id}</td>
+      <td>${escapeHtml(String(p.full_name ?? ""))}</td>
+      <td>${escapeHtml(String(p.student_staff_id ?? ""))}</td>
+      <td>${escapeHtml(String(p.position ?? ""))}</td>
+      <td>${escapeHtml(String(p.goals_count ?? 0))}</td>
+      <td>${escapeHtml(String(p.assists_count ?? 0))}</td>
+      <td>${escapeHtml(String(p.club_name ?? ""))}</td>
+      <td>${escapeHtml(String(p.year ?? "—"))}</td>
+      <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-player-del" data-id="${p.id}" title="Delete" aria-label="Delete">&#128465;</button></td>
+    </tr>`,
+    )
+    .join("");
+}
+
 async function refreshFixtures() {
   const { ok, data } = await apiGet("/api/v1/admin/fixtures", { auth: true });
   if (!ok) {
     showGlobalAlert(formatApiErrors(data));
     return;
   }
-  const fixtures = /** @type {Record<string, unknown>[]} */ (data.fixtures || []);
+  fixturesCache = /** @type {Record<string, unknown>[]} */ (data.fixtures || []);
   const tbody = document.querySelector("#table-fixtures tbody");
   if (!tbody) return;
-  tbody.innerHTML = fixtures
+  tbody.innerHTML = fixturesCache
     .map((f) => {
       const league = f.league && typeof f.league === "object" ? /** @type {{name:string}} */ (f.league).name : "";
       const h = f.home_club && typeof f.home_club === "object" ? /** @type {{club_name:string}} */ (f.home_club).club_name : "";
@@ -199,10 +400,11 @@ async function refreshFixtures() {
         <td>${escapeHtml(String(f.match_date))} ${escapeHtml(String(f.match_time)).slice(0, 5)}</td>
         <td>${escapeHtml(score)}</td>
         <td>${escapeHtml(String(f.status))}</td>
-        <td><button type="button" class="btn btn--danger btn--sm btn-fix-del" data-id="${f.id}">Delete</button></td>
+        <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-fix-del" data-id="${f.id}" title="Delete" aria-label="Delete">&#128465;</button></td>
       </tr>`;
     })
     .join("");
+  syncFixtureStatSelectors();
 }
 
 async function refreshPhotos() {
@@ -220,12 +422,12 @@ async function refreshPhotos() {
       (p) => `
       <tr data-photo-id="${p.id}">
         <td>${p.id}</td>
-        <td><img class="thumb" src="${escapeHtml(String(p.image_url))}" alt="" /></td>
+        <td><img class="thumb" src="${escapeHtml(resolveBackendPublicFileUrl(String(p.image_url)))}" alt="" /></td>
         <td>
           <input type="file" class="inp-photo-replace" accept="image/*" />
           <button type="button" class="btn btn--primary btn--sm btn-photo-replace">Replace</button>
         </td>
-        <td><button type="button" class="btn btn--danger btn--sm btn-photo-del">Delete</button></td>
+        <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-photo-del" title="Delete" aria-label="Delete">&#128465;</button></td>
       </tr>`,
     )
     .join("");
@@ -239,40 +441,84 @@ async function refreshUsers() {
     if (/** @type {any} */ (data).message) showGlobalAlert(formatApiErrors(data));
     return;
   }
-  const users = /** @type {Record<string, unknown>[]} */ (data.users || []);
-  const tbody = document.querySelector("#table-users tbody");
-  if (!tbody) return;
-  tbody.innerHTML = users
-    .map(
-      (u) => `<tr>
+  const adminUsers = /** @type {Record<string, unknown>[]} */ (data.admin_users || []);
+  const clientUsers = /** @type {Record<string, unknown>[]} */ (data.client_users || []);
+  const adminBody = document.querySelector("#table-users-admin tbody");
+  const clientBody = document.querySelector("#table-users-client tbody");
+  if (adminBody) {
+    adminBody.innerHTML = adminUsers
+      .map((u) => {
+        const rowKey = `admin-${u.id}`;
+        const isEditing = editingUserKey === rowKey;
+        return `<tr data-user-row-key="${rowKey}">
       <td>${u.id}</td>
-      <td>${escapeHtml(String(u.name))}</td>
-      <td>${escapeHtml(String(u.email))}</td>
-      <td>${escapeHtml(String(u.role))}</td>
-    </tr>`,
-    )
-    .join("");
-}
-
-async function refreshOverview() {
-  const el = document.getElementById("overview-stats");
-  if (!el) return;
-  const [lg, cl, fx, ph] = await Promise.all([
-    apiGet("/api/v1/admin/leagues", { auth: true }),
-    apiGet("/api/v1/admin/clubs", { auth: true }),
-    apiGet("/api/v1/admin/fixtures", { auth: true }),
-    apiGet("/api/v1/admin/photos", { auth: true }),
-  ]);
-  const nL = lg.ok && lg.data.leagues ? /** @type {unknown[]} */ (lg.data.leagues).length : "—";
-  const nC = cl.ok && cl.data.clubs ? /** @type {unknown[]} */ (cl.data.clubs).length : "—";
-  const nF = fx.ok && fx.data.fixtures ? /** @type {unknown[]} */ (fx.data.fixtures).length : "—";
-  const nP = ph.ok && ph.data.photos ? /** @type {unknown[]} */ (ph.data.photos).length : "—";
-  el.innerHTML = `<ul style="margin:0;padding-left:1.2rem">
-    <li>Leagues: <strong>${nL}</strong></li>
-    <li>Clubs: <strong>${nC}</strong></li>
-    <li>Fixtures: <strong>${nF}</strong></li>
-    <li>Photos: <strong>${nP}</strong> / 5 max</li>
-  </ul>`;
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-user-name" value="${escapeHtml(String(u.name ?? ""))}" />`
+          : escapeHtml(String(u.name ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="email" class="inp-user-email" value="${escapeHtml(String(u.email ?? ""))}" />`
+          : escapeHtml(String(u.email ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-user-ssid" value="${escapeHtml(String(u.student_staff_id ?? ""))}" />`
+          : escapeHtml(String(u.student_staff_id ?? ""))
+      }</td>
+      <td>${escapeHtml(String(u.role ?? ""))}</td>
+      <td>${escapeHtml(toDateTimeText(u.created_at))}</td>
+      <td>
+        ${
+          isEditing
+            ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-user-save" data-user-id="${u.id}" title="Save" aria-label="Save">&#128190;</button>
+               <button type="button" class="btn btn--ghost btn--sm btn-user-cancel">Cancel</button>`
+            : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-user-edit" data-user-id="${u.id}" data-user-key="${rowKey}" title="Edit" aria-label="Edit">&#9998;</button>`
+        }
+        <button type="button" class="btn btn--danger btn--sm btn--icon btn-user-del" data-user-id="${u.id}" title="Delete" aria-label="Delete">&#128465;</button>
+      </td>
+    </tr>`;
+      })
+      .join("");
+  }
+  if (clientBody) {
+    clientBody.innerHTML = clientUsers
+      .map((u) => {
+        const rowKey = `client-${u.id}`;
+        const isEditing = editingUserKey === rowKey;
+        return `<tr data-user-row-key="${rowKey}">
+      <td>${u.id}</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-user-name" value="${escapeHtml(String(u.name ?? ""))}" />`
+          : escapeHtml(String(u.name ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="email" class="inp-user-email" value="${escapeHtml(String(u.email ?? ""))}" />`
+          : escapeHtml(String(u.email ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-user-ssid" value="${escapeHtml(String(u.student_staff_id ?? ""))}" />`
+          : escapeHtml(String(u.student_staff_id ?? ""))
+      }</td>
+      <td>${escapeHtml(String(u.linked_club ?? "—"))}</td>
+      <td>${escapeHtml(toDateTimeText(u.created_at))}</td>
+      <td>
+        ${
+          isEditing
+            ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-user-save" data-user-id="${u.id}" title="Save" aria-label="Save">&#128190;</button>
+               <button type="button" class="btn btn--ghost btn--sm btn-user-cancel">Cancel</button>`
+            : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-user-edit" data-user-id="${u.id}" data-user-key="${rowKey}" title="Edit" aria-label="Edit">&#9998;</button>`
+        }
+        <button type="button" class="btn btn--danger btn--sm btn--icon btn-user-del" data-user-id="${u.id}" title="Delete" aria-label="Delete">&#128465;</button>
+      </td>
+    </tr>`;
+      })
+      .join("");
+  }
 }
 
 async function refreshAll() {
@@ -285,14 +531,253 @@ async function refreshAll() {
   if (currentUser.role === "default_admin") {
     await refreshUsers();
   }
-  await refreshOverview();
+  syncStandingsLeagueSelect();
+  if (document.getElementById("panel-standings")?.classList.contains("is-active")) {
+    await loadStandingsData();
+  }
+  if (document.getElementById("panel-certificates")?.classList.contains("is-active")) {
+    await loadCertificatesData();
+  }
+}
+
+function syncStandingsLeagueSelect() {
+  const sel = document.getElementById("standings-league-select");
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = leaguesCache
+    .map((l) => `<option value="${l.id}">${escapeHtml(l.name)} (${escapeHtml(l.year)})</option>`)
+    .join("");
+  const active = leaguesCache.find((l) => l.status === "active");
+  if (prev && leaguesCache.some((l) => String(l.id) === prev)) {
+    sel.value = prev;
+  } else if (active) {
+    sel.value = String(active.id);
+  } else if (leaguesCache[0]) {
+    sel.value = String(leaguesCache[0].id);
+  }
+}
+
+async function loadStandingsData() {
+  const sel = document.getElementById("standings-league-select");
+  const leagueId = sel?.value || "";
+  const q = leagueId ? `?league_id=${encodeURIComponent(leagueId)}` : "";
+  const { ok, data, status } = await apiGet(`/api/v1/admin/standings${q}`, { auth: true });
+  if (!ok) {
+    standingsRows = [];
+    showGlobalAlert(formatApiErrors(data, { status }));
+    renderStandingsTable();
+    return;
+  }
+  standingsRows = /** @type {Record<string, unknown>[]} */ (data.standings || []);
+  renderStandingsTable();
+}
+
+function numSort(a, b, key, dir) {
+  const va = Number(a[key]);
+  const vb = Number(b[key]);
+  if (Number.isNaN(va) && Number.isNaN(vb)) {
+    return 0;
+  }
+  if (Number.isNaN(va)) return 1;
+  if (Number.isNaN(vb)) return -1;
+  return (va - vb) * dir;
+}
+
+function renderStandingsTable() {
+  const tbody = document.querySelector("#table-standings tbody");
+  if (!tbody) return;
+  const q = (document.getElementById("standings-search")?.value || "").trim().toLowerCase();
+  let rows = standingsRows.slice();
+  if (q) rows = rows.filter((r) => String(r.club_name || "").toLowerCase().includes(q));
+  const key = standingsSortKey;
+  const dir = standingsSortDir;
+  const isNum = ["rank", "played", "won", "drawn", "lost", "goals_for", "goals_against", "goal_difference", "points"].includes(key);
+  rows = [...rows].sort((a, b) => {
+    if (isNum) return numSort(a, b, key, dir);
+    return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { sensitivity: "base" }) * dir;
+  });
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="admin-muted">No standings for this season or no match for search.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows
+    .map(
+      (r, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(String(r.club_name ?? "—"))}</td>
+      <td>${escapeHtml(String(r.played ?? "—"))}</td>
+      <td>${escapeHtml(String(r.won ?? "—"))}</td>
+      <td>${escapeHtml(String(r.drawn ?? "—"))}</td>
+      <td>${escapeHtml(String(r.lost ?? "—"))}</td>
+      <td>${escapeHtml(String(r.goals_for ?? "—"))}</td>
+      <td>${escapeHtml(String(r.goals_against ?? "—"))}</td>
+      <td>${escapeHtml(String(r.goal_difference ?? "—"))}</td>
+      <td><strong>${escapeHtml(String(r.points ?? "—"))}</strong></td>
+    </tr>`,
+    )
+    .join("");
+}
+
+async function refreshStandingsPanel() {
+  syncStandingsLeagueSelect();
+  await loadStandingsData();
+}
+
+async function loadCertificatesData() {
+  const { ok, data, status } = await apiGet("/api/v1/admin/certificates", { auth: true });
+  if (!ok) {
+    certificatesRaw = [];
+    showGlobalAlert(formatApiErrors(data, { status }));
+    renderCertificatesTable();
+    return;
+  }
+  certificatesRaw = /** @type {Record<string, unknown>[]} */ (data.certificates || []);
+  renderCertificatesTable();
+}
+
+function renderCertificatesTable() {
+  const tbody = document.querySelector("#table-certificates tbody");
+  if (!tbody) return;
+  const q = (document.getElementById("certificates-search")?.value || "").trim().toLowerCase();
+  let rows = [...certificatesRaw];
+  if (q) {
+    rows = rows.filter((c) => {
+      const blob = [
+        c.title,
+        c.user_name,
+        c.student_staff_id,
+        c.user_email,
+        c.positions_played,
+        c.type,
+      ]
+        .map((x) => String(x ?? "").toLowerCase())
+        .join(" ");
+      return blob.includes(q);
+    });
+  }
+  const key = certSortKey;
+  const dir = certSortDir;
+  const numKeys = ["scored", "assisted", "participate_year_start"];
+  rows.sort((a, b) => {
+    if (numKeys.includes(key)) return numSort(a, b, key, dir);
+    return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { sensitivity: "base" }) * dir;
+  });
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="admin-muted">No certificates or no match for search.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows
+    .map((c) => {
+      const yr = `${c.participate_year_start ?? "—"}-${c.participate_year_end ?? "—"}`;
+      return `<tr>
+        <td>${escapeHtml(String(c.title ?? "—"))}</td>
+        <td>${escapeHtml(String(c.student_staff_id ?? "—"))}</td>
+        <td>${escapeHtml(String(c.user_name ?? "—"))}</td>
+        <td>${escapeHtml(yr)}</td>
+        <td>${escapeHtml(String(c.positions_played ?? "—"))}</td>
+        <td>${escapeHtml(String(c.scored ?? "—"))}</td>
+        <td>${escapeHtml(String(c.assisted ?? "—"))}</td>
+        <td><button type="button" class="btn btn--primary btn--sm btn-cert-pdf" data-cert-id="${c.id}">PDF</button></td>
+      </tr>`;
+    })
+    .join("");
+}
+
+async function refreshCertificatesPanel() {
+  await loadCertificatesData();
+}
+
+function wireStandingsPanel() {
+  document.getElementById("standings-league-select")?.addEventListener("change", () => {
+    void loadStandingsData();
+  });
+  document.getElementById("btn-standings-refresh")?.addEventListener("click", () => {
+    void refreshStandingsPanel();
+  });
+  document.getElementById("standings-search")?.addEventListener("input", () => {
+    renderStandingsTable();
+  });
+  document.querySelector("#table-standings thead")?.addEventListener("click", (e) => {
+    const th = /** @type {HTMLElement} */ (e.target).closest("th[data-sort]");
+    if (!th) return;
+    const key = th.getAttribute("data-sort");
+    if (!key) return;
+    if (standingsSortKey === key) standingsSortDir *= -1;
+    else {
+      standingsSortKey = key;
+      standingsSortDir = key === "club_name" ? 1 : -1;
+    }
+    renderStandingsTable();
+  });
+}
+
+function wireCertificatesPanel() {
+  document.getElementById("certificates-search")?.addEventListener("input", () => {
+    renderCertificatesTable();
+  });
+  document.getElementById("btn-certificates-refresh")?.addEventListener("click", () => {
+    void refreshCertificatesPanel();
+  });
+  document.querySelector("#table-certificates thead")?.addEventListener("click", (e) => {
+    const th = /** @type {HTMLElement} */ (e.target).closest("th[data-cert-sort]");
+    if (!th) return;
+    const key = th.getAttribute("data-cert-sort");
+    if (!key) return;
+    if (certSortKey === key) certSortDir *= -1;
+    else {
+      certSortKey = key;
+      certSortDir = 1;
+    }
+    renderCertificatesTable();
+  });
+  document.querySelector("#table-certificates")?.addEventListener("click", async (e) => {
+    const btn = /** @type {HTMLElement} */ (e.target).closest(".btn-cert-pdf");
+    if (!btn) return;
+    const id = btn.getAttribute("data-cert-id");
+    if (!id || !getToken()) return;
+    const res = await fetch(`${API_BASE_URL}/api/v1/admin/certificates/${id}/pdf`, {
+      headers: { Authorization: `Bearer ${getToken()}`, Accept: "application/pdf" },
+    });
+    if (!res.ok) {
+      showGlobalAlert("Could not download certificate PDF.");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `certificate-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+async function logoutToPublicSite() {
+  try {
+    if (getToken()) {
+      await apiPostJson("/api/v1/auth/logout", {}, { auth: true });
+    }
+  } catch {
+    /* still clear local session */
+  }
+  clearToken();
+  currentUser = null;
+  window.location.replace(resolvePublicHomeUrl());
 }
 
 function wireNav() {
-  document.getElementById("admin-nav")?.addEventListener("click", (e) => {
+  document.getElementById("admin-nav")?.addEventListener("click", async (e) => {
+    if (/** @type {HTMLElement} */ (e.target).closest("#btn-nav-logout")) {
+      e.preventDefault();
+      await logoutToPublicSite();
+      return;
+    }
     const btn = /** @type {HTMLElement} */ (e.target).closest("button[data-panel]");
     if (!btn) return;
-    setPanel(btn.dataset.panel || "overview");
+    const name = btn.dataset.panel || "leagues";
+    setPanel(name);
+    if (name === "standings") await refreshStandingsPanel();
+    if (name === "certificates") await refreshCertificatesPanel();
   });
 }
 
@@ -304,27 +789,51 @@ function wireLeagueTable() {
     const id = tr.getAttribute("data-league-id");
     if (!id) return;
     if (t.classList.contains("btn-league-del")) {
-      if (!confirm("Delete this league?")) return;
-      const { ok, data } = await apiDelete(`/api/v1/admin/leagues/${id}`, { auth: true });
-      if (!ok) showGlobalAlert(formatApiErrors(data));
+      if (!confirm("Delete this season? This cannot be undone if the API allows it.")) return;
+      const { ok, data, status } = await apiDelete(`/api/v1/admin/leagues/${id}`, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data, { status }));
       else {
-        showGlobalAlert("League deleted.", "success");
+        showGlobalAlert("Season deleted.", "success");
         await refreshAll();
       }
       return;
     }
+    if (t.classList.contains("btn-league-edit")) {
+      editingLeagueId = id;
+      await refreshLeagues();
+      return;
+    }
+    if (t.classList.contains("btn-league-cancel")) {
+      editingLeagueId = null;
+      await refreshLeagues();
+      return;
+    }
+    if (t.classList.contains("btn-league-edit")) {
+      return;
+    }
     if (t.classList.contains("btn-league-save")) {
-      const name = tr.querySelector(".inp-league-name")?.value;
-      const season = tr.querySelector(".inp-league-season")?.value;
+      const name = tr.querySelector(".inp-league-name")?.value?.trim();
+      const year = tr.querySelector(".inp-league-year")?.value?.trim();
+      const starts_on = tr.querySelector(".inp-league-starts")?.value?.trim();
+      const ends_on = tr.querySelector(".inp-league-ends")?.value?.trim();
       const status = tr.querySelector(".inp-league-status")?.value;
+      if (!name || !year || !status) {
+        showGlobalAlert("Season name, year, and status are required.");
+        return;
+      }
+      if (!starts_on || !ends_on) {
+        showGlobalAlert("Start date and end date are required.");
+        return;
+      }
       const { ok, data } = await apiPatchJson(
         `/api/v1/admin/leagues/${id}`,
-        { name, season, status },
+        { name, year, starts_on, ends_on, status },
         { auth: true },
       );
       if (!ok) showGlobalAlert(formatApiErrors(data));
       else {
-        showGlobalAlert("League updated.", "success");
+        editingLeagueId = null;
+        showGlobalAlert("Season updated.", "success");
         await refreshAll();
       }
     }
@@ -336,15 +845,23 @@ function wireLeagueCreate() {
     e.preventDefault();
     const form = /** @type {HTMLFormElement} */ (e.target);
     const fd = new FormData(form);
+    const starts_on = String(fd.get("starts_on") || "").trim();
+    const ends_on = String(fd.get("ends_on") || "").trim();
     const body = {
       name: fd.get("name"),
-      season: fd.get("season"),
+      year: fd.get("year"),
+      starts_on,
+      ends_on,
       status: fd.get("status"),
     };
+    if (!starts_on || !ends_on) {
+      showGlobalAlert("Start date and end date are required.");
+      return;
+    }
     const { ok, data } = await apiPostJson("/api/v1/admin/leagues", body, { auth: true });
     if (!ok) showGlobalAlert(formatApiErrors(data));
     else {
-      showGlobalAlert("League created.", "success");
+      showGlobalAlert("Season created.", "success");
       form.reset();
       await refreshAll();
     }
@@ -356,24 +873,89 @@ function wireClubTable() {
   document.getElementById("btn-clubs-refresh")?.addEventListener("click", () => refreshClubs());
 
   document.querySelector("#table-clubs")?.addEventListener("click", async (e) => {
-    const t = /** @type {HTMLElement} */ (e.target);
-    const id = t.getAttribute("data-club");
+    const btn = /** @type {HTMLElement | null} */ (e.target instanceof Element ? e.target.closest("button") : null);
+    const tr = /** @type {HTMLElement | null} */ (e.target instanceof Element ? e.target.closest("tr[data-club-id]") : null);
+    if (!tr) return;
+    const id = tr.getAttribute("data-club-id");
     if (!id) return;
-    if (t.classList.contains("btn-club-approve")) {
-      const sel = document.querySelector(`.club-pick-league[data-club="${id}"]`);
-      const leagueId = sel?.value;
+
+    if (btn?.classList.contains("btn-club-edit")) {
+      editingClubId = Number(id);
+      await refreshClubs();
+      return;
+    }
+    if (btn?.classList.contains("btn-club-cancel")) {
+      editingClubId = null;
+      await refreshClubs();
+      return;
+    }
+    if (btn?.classList.contains("btn-club-save")) {
+      const nameInp = tr.querySelector(".inp-club-name");
+      const statusSel = tr.querySelector(".inp-club-status");
+      const leagueSel = tr.querySelector(".inp-club-league");
+      const name = /** @type {HTMLInputElement | null} */ (nameInp)?.value?.trim();
+      const status = /** @type {HTMLSelectElement | null} */ (statusSel)?.value;
+      if (!name) {
+        showGlobalAlert("Club name is required.");
+        return;
+      }
+      if (!status) {
+        showGlobalAlert("Status is required.");
+        return;
+      }
+      /** @type {{ club_name: string; status: string; league_id: number | null }} */
+      const body = { club_name: name, status, league_id: null };
+      if (status === "approved") {
+        const v = /** @type {HTMLSelectElement | null} */ (leagueSel)?.value;
+        if (!v) {
+          showGlobalAlert("Approved clubs must be assigned to a league.");
+          return;
+        }
+        body.league_id = Number(v);
+      } else {
+        const v = /** @type {HTMLSelectElement | null} */ (leagueSel)?.value;
+        body.league_id = v ? Number(v) : null;
+      }
+      const { ok, data } = await apiPatchJson(`/api/v1/admin/clubs/${id}`, body, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data));
+      else {
+        editingClubId = null;
+        showGlobalAlert("Club updated.", "success");
+        await refreshAll();
+      }
+      return;
+    }
+    if (btn?.classList.contains("btn-club-del")) {
+      if (!confirm("Delete this club? This removes linked players and fixtures.")) return;
+      const { ok, data } = await apiDelete(`/api/v1/admin/clubs/${id}`, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data));
+      else {
+        if (editingClubId !== null && Number(editingClubId) === Number(id)) editingClubId = null;
+        showGlobalAlert("Club deleted.", "success");
+        await refreshAll();
+      }
+      return;
+    }
+    if (btn?.classList.contains("btn-club-approve")) {
+      const sel = tr.querySelector(".club-pick-league");
+      const leagueId = /** @type {HTMLSelectElement | null} */ (sel)?.value;
       if (!leagueId) {
         showGlobalAlert("Choose a league before approving.");
         return;
       }
-      const { ok, data } = await apiPatchJson(`/api/v1/admin/clubs/${id}`, { status: "approved", league_id: Number(leagueId) }, { auth: true });
+      const { ok, data } = await apiPatchJson(
+        `/api/v1/admin/clubs/${id}`,
+        { status: "approved", league_id: Number(leagueId) },
+        { auth: true },
+      );
       if (!ok) showGlobalAlert(formatApiErrors(data));
       else {
         showGlobalAlert("Club approved.", "success");
         await refreshAll();
       }
+      return;
     }
-    if (t.classList.contains("btn-club-reject")) {
+    if (btn?.classList.contains("btn-club-reject")) {
       const { ok, data } = await apiPatchJson(`/api/v1/admin/clubs/${id}`, { status: "rejected" }, { auth: true });
       if (!ok) showGlobalAlert(formatApiErrors(data));
       else {
@@ -385,55 +967,6 @@ function wireClubTable() {
 }
 
 function wirePlayers() {
-  document.getElementById("btn-players-load")?.addEventListener("click", async () => {
-    const clubId = document.getElementById("player-club-select")?.value;
-    const hidden = document.getElementById("player-form-club-id");
-    if (hidden) hidden.value = clubId || "";
-    if (!clubId) return;
-    const { ok, data } = await apiGet(`/api/v1/admin/clubs/${clubId}/players`, { auth: true });
-    const tbody = document.querySelector("#table-players tbody");
-    if (!tbody) return;
-    if (!ok) {
-      tbody.innerHTML = "";
-      showGlobalAlert(formatApiErrors(data));
-      return;
-    }
-    const players = /** @type {Record<string, unknown>[]} */ (data.players || []);
-    tbody.innerHTML = players
-      .map(
-        (p) => `<tr>
-        <td>${p.id}</td>
-        <td>${escapeHtml(String(p.full_name))}</td>
-        <td>${escapeHtml(String(p.student_staff_id))}</td>
-        <td>${escapeHtml(String(p.position))}</td>
-        <td><button type="button" class="btn btn--danger btn--sm btn-player-del" data-id="${p.id}">Delete</button></td>
-      </tr>`,
-      )
-      .join("");
-  });
-
-  document.getElementById("form-player-create")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const form = /** @type {HTMLFormElement} */ (e.target);
-    const clubId = document.getElementById("player-form-club-id")?.value;
-    if (!clubId) {
-      showGlobalAlert("Load a club first.");
-      return;
-    }
-    const fd = new FormData(form);
-    const { ok, data } = await apiPostForm(`/api/v1/admin/clubs/${clubId}/players`, fd);
-    if (!ok) showGlobalAlert(formatApiErrors(data));
-    else {
-      showGlobalAlert("Player added.", "success");
-      form.querySelector('input[name="full_name"]')?.value = "";
-      form.querySelector('input[name="student_staff_id"]')?.value = "";
-      form.querySelector('input[name="position"]')?.value = "";
-      form.querySelector('input[name="jersey_number"]')?.value = "";
-      form.querySelector('input[name="player_photo"]')?.value = "";
-      document.getElementById("btn-players-load")?.click();
-    }
-  });
-
   document.querySelector("#table-players")?.addEventListener("click", async (e) => {
     const t = /** @type {HTMLElement} */ (e.target);
     if (!t.classList.contains("btn-player-del")) return;
@@ -443,7 +976,7 @@ function wirePlayers() {
     if (!ok) showGlobalAlert(formatApiErrors(data));
     else {
       showGlobalAlert("Player removed.", "success");
-      document.getElementById("btn-players-load")?.click();
+      await refreshAll();
     }
   });
 }
@@ -487,7 +1020,219 @@ function wireFixtures() {
   });
 }
 
+function fixtureClubPlayerOptions(fixtureId) {
+  const fixture = fixturesCache.find((f) => String(f.id) === String(fixtureId));
+  if (!fixture) return [];
+  const allowedClubIds = [String(fixture.home_club_id), String(fixture.away_club_id)];
+  const rows = [];
+  for (const club of clubsCache) {
+    if (!allowedClubIds.includes(String(club.id))) continue;
+    const players = Array.isArray(club.players) ? club.players : [];
+    for (const p of players) {
+      rows.push({
+        id: p.id,
+        label: `${p.full_name} (${club.club_name})`,
+      });
+    }
+  }
+  return rows;
+}
+
+function syncFixtureStatSelectors() {
+  const fixtureSel = document.getElementById("fixture-stats-fixture");
+  const playerSel = document.getElementById("fixture-stats-player");
+  if (!fixtureSel || !playerSel) return;
+
+  const prevFixtureId = fixtureSel.value;
+  fixtureSel.innerHTML = fixturesCache
+    .map((f) => `<option value="${f.id}">#${f.id} ${escapeHtml(String(f.home_club?.club_name || ""))} vs ${escapeHtml(String(f.away_club?.club_name || ""))}</option>`)
+    .join("");
+  if (prevFixtureId && fixturesCache.some((f) => String(f.id) === String(prevFixtureId))) {
+    fixtureSel.value = prevFixtureId;
+  }
+
+  const options = fixtureClubPlayerOptions(fixtureSel.value);
+  playerSel.innerHTML = options
+    .map((o) => `<option value="${o.id}">${escapeHtml(o.label)}</option>`)
+    .join("");
+}
+
+async function loadFixtureStats() {
+  const fixtureSel = document.getElementById("fixture-stats-fixture");
+  const fixtureId = fixtureSel?.value;
+  if (!fixtureId) return;
+
+  const { ok, data, status } = await apiGet(`/api/v1/admin/fixtures/${fixtureId}/player-stats`, { auth: true });
+  if (!ok) {
+    showGlobalAlert(formatApiErrors(data, { status }));
+    return;
+  }
+  fixtureStatsRows = /** @type {Record<string, unknown>[]} */ (data.stats || []);
+  renderFixtureStatsTable();
+}
+
+function renderFixtureStatsTable() {
+  const tbody = document.querySelector("#table-fixture-stats tbody");
+  if (!tbody) return;
+  if (fixtureStatsRows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="admin-muted">No fixture stats found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = fixtureStatsRows
+    .map(
+      (r) => {
+        const rowId = String(r.id ?? "");
+        const isEditing = editingFixtureStatId !== null && String(editingFixtureStatId) === rowId;
+        const qty = Number(r.quantity ?? 1);
+        const qtyCell = isEditing
+          ? `<input type="number" class="inp-fixture-stat-qty" value="${escapeHtml(String(qty || 1))}" min="1" max="100" />`
+          : escapeHtml(String(qty || 1));
+        const editCell = isEditing
+          ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-fixture-stat-save" data-stat-id="${escapeHtml(rowId)}" title="Save" aria-label="Save">&#128190;</button>
+             <button type="button" class="btn btn--ghost btn--sm btn-fixture-stat-cancel">Cancel</button>`
+          : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-fixture-stat-edit" data-stat-id="${escapeHtml(rowId)}" title="Edit" aria-label="Edit">&#9998;</button>`;
+        return `<tr data-stat-id="${escapeHtml(rowId)}">
+      <td>${r.id}</td>
+      <td>${escapeHtml(String(r.stat_type || ""))}</td>
+      <td>${escapeHtml(String(r.player_name || ""))}</td>
+      <td>${escapeHtml(String(r.club_name || ""))}</td>
+      <td>${qtyCell}</td>
+      <td>${editCell}</td>
+      <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-fixture-stat-del" data-stat-id="${escapeHtml(rowId)}" title="Delete" aria-label="Delete">&#128465;</button></td>
+    </tr>`;
+      },
+    )
+    .join("");
+}
+
+function wireFixtureStats() {
+  const statTypeSelect = document.getElementById("fixture-stats-type");
+  const statCountInput = document.getElementById("fixture-stats-count");
+  const syncStatCountInput = () => {
+    if (!(statTypeSelect instanceof HTMLSelectElement) || !(statCountInput instanceof HTMLInputElement)) return;
+    const isCountable = statTypeSelect.value === "goal" || statTypeSelect.value === "assist";
+    statCountInput.disabled = !isCountable;
+    if (!isCountable) {
+      statCountInput.value = "1";
+    }
+  };
+  statTypeSelect?.addEventListener("change", syncStatCountInput);
+  syncStatCountInput();
+
+  document.getElementById("fixture-stats-fixture")?.addEventListener("change", () => {
+    editingFixtureStatId = null;
+    syncFixtureStatSelectors();
+    void loadFixtureStats();
+  });
+  document.getElementById("btn-fixture-stat-load")?.addEventListener("click", () => {
+    void loadFixtureStats();
+  });
+  document.getElementById("btn-fixture-stat-add")?.addEventListener("click", async () => {
+    const fixtureId = document.getElementById("fixture-stats-fixture")?.value;
+    const playerId = document.getElementById("fixture-stats-player")?.value;
+    const statType = document.getElementById("fixture-stats-type")?.value;
+    const quantityRaw = document.getElementById("fixture-stats-count")?.value;
+    const quantity = Number(quantityRaw || 1);
+    if (!fixtureId || !playerId || !statType) {
+      showGlobalAlert("Select fixture, player, and stat type.");
+      return;
+    }
+    if ((statType === "goal" || statType === "assist") && (!Number.isInteger(quantity) || quantity < 1 || quantity > 100)) {
+      showGlobalAlert("No. of goal/assist must be a whole number from 1 to 100.");
+      return;
+    }
+    const { ok, data, status } = await apiPostJson(
+      `/api/v1/admin/fixtures/${fixtureId}/player-stats`,
+      { player_id: Number(playerId), stat_type: statType, quantity: statType === "participant" ? 1 : quantity },
+      { auth: true },
+    );
+    if (!ok) {
+      showGlobalAlert(formatApiErrors(data, { status }));
+      return;
+    }
+    editingFixtureStatId = null;
+    showGlobalAlert("Fixture stat saved.", "success");
+    await refreshClubs();
+    await loadFixtureStats();
+  });
+  document.querySelector("#table-fixture-stats")?.addEventListener("click", async (e) => {
+    const editBtn = /** @type {HTMLElement} */ (e.target).closest(".btn-fixture-stat-edit");
+    if (editBtn) {
+      const id = editBtn.getAttribute("data-stat-id");
+      if (!id) return;
+      editingFixtureStatId = id;
+      renderFixtureStatsTable();
+      return;
+    }
+
+    const cancelBtn = /** @type {HTMLElement} */ (e.target).closest(".btn-fixture-stat-cancel");
+    if (cancelBtn) {
+      editingFixtureStatId = null;
+      renderFixtureStatsTable();
+      return;
+    }
+
+    const saveBtn = /** @type {HTMLElement} */ (e.target).closest(".btn-fixture-stat-save");
+    if (saveBtn) {
+      const id = saveBtn.getAttribute("data-stat-id");
+      if (!id) return;
+      const tr = saveBtn.closest("tr[data-stat-id]");
+      if (!tr) return;
+      const nextQty = Number((/** @type {HTMLInputElement|null} */ (tr.querySelector(".inp-fixture-stat-qty"))?.value || "").trim());
+      if (!Number.isInteger(nextQty) || nextQty < 1 || nextQty > 100) {
+        showGlobalAlert("No. of goal/assist must be a whole number from 1 to 100.");
+        return;
+      }
+      const { ok, data, status } = await apiPatchJson(
+        `/api/v1/admin/fixture-player-stats/${id}`,
+        { quantity: nextQty },
+        { auth: true },
+      );
+      if (!ok) {
+        showGlobalAlert(formatApiErrors(data, { status }));
+        return;
+      }
+      editingFixtureStatId = null;
+      showGlobalAlert("Fixture stat updated.", "success");
+      await refreshClubs();
+      await loadFixtureStats();
+      return;
+    }
+
+    const btn = /** @type {HTMLElement} */ (e.target).closest(".btn-fixture-stat-del");
+    if (!btn) return;
+    const id = btn.getAttribute("data-stat-id");
+    if (!id || !confirm("Delete this fixture stat entry?")) return;
+    const { ok, data, status } = await apiDelete(`/api/v1/admin/fixture-player-stats/${id}`, { auth: true });
+    if (!ok) {
+      showGlobalAlert(formatApiErrors(data, { status }));
+      return;
+    }
+    if (editingFixtureStatId !== null && String(editingFixtureStatId) === String(id)) {
+      editingFixtureStatId = null;
+    }
+    showGlobalAlert("Fixture stat deleted.", "success");
+    await refreshClubs();
+    await loadFixtureStats();
+  });
+}
+
 function wirePhotos() {
+  document.querySelector('#form-photo-upload input[name="image"]')?.addEventListener("change", (e) => {
+    const input = /** @type {HTMLInputElement} */ (e.target);
+    const file = input.files?.[0];
+    const wrap = document.getElementById("photo-upload-preview-wrap");
+    const img = document.getElementById("photo-upload-preview");
+    if (!wrap || !img) return;
+    if (!file) {
+      wrap.hidden = true;
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    wrap.hidden = false;
+  });
+
   document.getElementById("form-photo-upload")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = /** @type {HTMLFormElement} */ (e.target);
@@ -497,6 +1242,8 @@ function wirePhotos() {
     else {
       showGlobalAlert("Photo uploaded.", "success");
       form.reset();
+      const wrap = document.getElementById("photo-upload-preview-wrap");
+      if (wrap) wrap.hidden = true;
       await refreshAll();
     }
   });
@@ -541,6 +1288,17 @@ function wireUsers() {
     const form = /** @type {HTMLFormElement} */ (e.target);
     const fd = new FormData(form);
     const body = Object.fromEntries(fd.entries());
+    const password = String(body.password || "");
+    const passwordConfirmation = String(body.password_confirmation || "");
+    const passwordIssue = getPasswordRequirementIssue(password);
+    if (passwordIssue) {
+      showGlobalAlert(passwordIssue);
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      showGlobalAlert("Password confirmation does not match.");
+      return;
+    }
     const { ok, data } = await apiPostJson("/api/v1/admin/users", body, { auth: true });
     if (!ok) showGlobalAlert(formatApiErrors(data));
     else {
@@ -549,73 +1307,236 @@ function wireUsers() {
       await refreshUsers();
     }
   });
+
+  const handleUserAction = async (e) => {
+    const btn = /** @type {HTMLElement} */ (e.target).closest(".btn-user-edit, .btn-user-del");
+    const saveBtn = /** @type {HTMLElement} */ (e.target).closest(".btn-user-save");
+    const cancelBtn = /** @type {HTMLElement} */ (e.target).closest(".btn-user-cancel");
+    if (cancelBtn) {
+      editingUserKey = null;
+      await refreshUsers();
+      return;
+    }
+    if (saveBtn) {
+      const id = saveBtn.getAttribute("data-user-id");
+      if (!id) return;
+      const tr = saveBtn.closest("tr");
+      if (!tr) return;
+      const name = tr.querySelector(".inp-user-name")?.value?.trim();
+      const email = tr.querySelector(".inp-user-email")?.value?.trim();
+      const student_staff_id = tr.querySelector(".inp-user-ssid")?.value?.trim();
+      if (!name || !email || !student_staff_id) {
+        showGlobalAlert("Name, email, and student/staff ID are required.");
+        return;
+      }
+      const { ok, data, status } = await apiPatchJson(
+        `/api/v1/admin/users/${id}`,
+        { name, email, student_staff_id },
+        { auth: true },
+      );
+      if (!ok) {
+        showGlobalAlert(formatApiErrors(data, { status }));
+        return;
+      }
+      editingUserKey = null;
+      showGlobalAlert("User updated.", "success");
+      await refreshUsers();
+      return;
+    }
+    if (!btn) return;
+    const id = btn.getAttribute("data-user-id");
+    if (!id) return;
+    if (btn.classList.contains("btn-user-del")) {
+      if (!confirm("Delete this user?")) return;
+      const { ok, data, status } = await apiDelete(`/api/v1/admin/users/${id}`, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data, { status }));
+      else {
+        showGlobalAlert("User deleted.", "success");
+        await refreshUsers();
+      }
+      return;
+    }
+    editingUserKey = btn.getAttribute("data-user-key");
+    await refreshUsers();
+  };
+  document.querySelector("#table-users-admin")?.addEventListener("click", handleUserAction);
+  document.querySelector("#table-users-client")?.addEventListener("click", handleUserAction);
 }
 
 async function showApp(user) {
   currentUser = user;
-  document.getElementById("admin-login").style.display = "none";
+  const login = document.getElementById("admin-login");
+  if (login) {
+    login.style.display = "none";
+  }
   const app = document.getElementById("admin-app");
+  if (!app) return;
   app.classList.add("is-visible");
-  document.getElementById("admin-user-label").textContent = `${user.name} (${user.role})`;
+  const userLabel = document.getElementById("admin-user-label");
+  if (userLabel) userLabel.textContent = `${user.name} (${user.role})`;
   const navUsers = document.getElementById("nav-users");
   if (navUsers) navUsers.hidden = user.role !== "default_admin";
-  await refreshAll();
+  try {
+    await refreshAll();
+  } catch (err) {
+    console.error(err);
+    showGlobalAlert("Dashboard loaded but some data failed to refresh. Check the API URL and console.", "error");
+  }
 }
 
 function showLogin() {
   clearToken();
   currentUser = null;
-  document.getElementById("admin-login").style.display = "";
-  document.getElementById("admin-app").classList.remove("is-visible");
+  if (isDashboardOnlyMode()) {
+    window.location.replace(new URL("index.html", window.location.href).toString());
+    return;
+  }
+  const login = document.getElementById("admin-login");
+  const app = document.getElementById("admin-app");
+  if (login) login.style.display = "";
+  if (app) app.classList.remove("is-visible");
+}
+
+/** Remove credentials accidentally submitted as GET query params (default form method is GET). */
+function stripLoginQueryFromUrl() {
+  if (!window.location.search) return;
+  const sp = new URLSearchParams(window.location.search);
+  if (!sp.has("email") && !sp.has("password")) return;
+  const path = window.location.pathname + window.location.hash;
+  window.history.replaceState({}, "", path || "/");
+}
+
+async function runAdminLogin() {
+  const form = document.getElementById("form-login");
+  const alert = document.getElementById("login-alert");
+  const submitBtn = document.getElementById("btn-admin-login");
+  if (!form) return;
+  if (submitBtn) submitBtn.setAttribute("disabled", "disabled");
+  if (alert) {
+    alert.textContent = "Signing in...";
+    alert.hidden = false;
+  }
+  const fd = new FormData(/** @type {HTMLFormElement} */ (form));
+  const body = {
+    email: fd.get("email"),
+    password: fd.get("password"),
+    portal: "admin",
+  };
+  try {
+    const { ok, data, status } = await apiPostJson("/api/v1/auth/login", body);
+    if (!ok) {
+      if (alert) {
+        alert.textContent = formatApiErrors(data, { status });
+        alert.hidden = false;
+      }
+      if (submitBtn) submitBtn.removeAttribute("disabled");
+      return;
+    }
+    if (alert) alert.hidden = true;
+    const token = /** @type {{ token?: string }} */ (data).token;
+    if (!token) {
+      if (alert) {
+        alert.textContent = "No token returned from the server.";
+        alert.hidden = false;
+      }
+      if (submitBtn) submitBtn.removeAttribute("disabled");
+      return;
+    }
+    setToken(token);
+
+    const loginUserCandidate =
+      data && typeof data.user === "object"
+        ? /** @type {{ id?: number; name?: string; email?: string; role?: string }} */ (data.user)
+        : null;
+    const loginRole = String(loginUserCandidate?.role || "");
+    if (loginRole === "client") {
+      window.location.replace(resolvePublicHomeUrl());
+      return;
+    }
+    if (isAdminRole(loginRole)) {
+      await showApp(
+        /** @type {{ id: number; name: string; email: string; role: string }} */ ({
+          id: Number(loginUserCandidate?.id || 0),
+          name: String(loginUserCandidate?.name || "Admin"),
+          email: String(loginUserCandidate?.email || ""),
+          role: loginRole,
+        }),
+      );
+      return;
+    }
+
+    const user = await loadMe();
+    if (!user) {
+      showLogin();
+      if (alert) {
+        alert.textContent = "Signed in, but admin profile loading failed. Please retry once.";
+        alert.hidden = false;
+      }
+      if (submitBtn) submitBtn.removeAttribute("disabled");
+      return;
+    }
+    if (String(user.role || "") === "client") {
+      window.location.replace(resolvePublicHomeUrl());
+      return;
+    }
+    if (isAdminRole(String(user.role || ""))) {
+      await showApp(user);
+      return;
+    }
+    showLogin();
+    if (alert) {
+      alert.textContent = "This account role is not allowed.";
+      alert.hidden = false;
+    }
+    if (submitBtn) submitBtn.removeAttribute("disabled");
+  } catch (err) {
+    console.error(err);
+    if (alert) {
+      alert.textContent = `Cannot reach API at ${API_BASE_URL}. Is Laravel running (e.g. php artisan serve)? Details in console.`;
+      alert.hidden = false;
+    }
+    if (submitBtn) submitBtn.removeAttribute("disabled");
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.__versityAdminLogin = () => {
+    void runAdminLogin();
+  };
 }
 
 async function boot() {
+  if (typeof window !== "undefined") {
+    window.__VERSITY_ADMIN_BOOTED = true;
+  }
+  stripLoginQueryFromUrl();
+  if (isDashboardOnlyMode() && !getToken()) {
+    window.location.replace(new URL("index.html", window.location.href).toString());
+    return;
+  }
+
+  document.getElementById("btn-admin-login")?.addEventListener("click", () => {
+    void runAdminLogin();
+  });
+  document.getElementById("form-login")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void runAdminLogin();
+    }
+  });
+  initPasswordToggles();
+
   wireNav();
+  wireStandingsPanel();
+  wireCertificatesPanel();
   wireLeagueTable();
   wireLeagueCreate();
   wireClubTable();
   wirePlayers();
   wireFixtures();
+  wireFixtureStats();
   wirePhotos();
   wireUsers();
-
-  document.getElementById("form-login")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const form = /** @type {HTMLFormElement} */ (e.target);
-    const fd = new FormData(form);
-    const body = {
-      email: fd.get("email"),
-      password: fd.get("password"),
-      portal: "admin",
-    };
-    const alert = document.getElementById("login-alert");
-    const { ok, data } = await apiPostJson("/api/v1/auth/login", body);
-    if (!ok) {
-      if (alert) {
-        alert.textContent = formatApiErrors(data);
-        alert.hidden = false;
-      }
-      return;
-    }
-    if (alert) alert.hidden = true;
-    setToken(/** @type {{token:string}} */ (data).token);
-    const user = await loadMe();
-    if (!user) {
-      showLogin();
-      if (alert) {
-        alert.textContent = "This account is not an administrator.";
-        alert.hidden = false;
-      }
-      return;
-    }
-    await showApp(user);
-  });
-
-  document.getElementById("btn-logout")?.addEventListener("click", async () => {
-    await apiPostJson("/api/v1/auth/logout", {}, { auth: true });
-    showLogin();
-    setPanel("overview");
-  });
 
   if (!getToken()) return;
   const user = await loadMe();
