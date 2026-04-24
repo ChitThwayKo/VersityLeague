@@ -17,7 +17,7 @@
 const STATIC_DEV_PORTS = new Set(["5173", "5500", "3000", "4173", "8888"]);
 
 /** Default folder under Apache for this repo (override with meta or `VERSITY_API_BASE_URL`). */
-const VERSITY_DEFAULT_HTDOCS_SEG = "/VersityLeague_V4";
+const VERSITY_DEFAULT_HTDOCS_SEG = "/VersityLeague_V4_D9";
 
 function looksLikeXamppProjectPath(pathname) {
   const p = String(pathname || "")

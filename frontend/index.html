@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- XAMPP on Windows often uses Apache :8080 while :80 is IIS. Change/remove port if your Laravel URL differs. -->
-    <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4/backend/public" />
+    <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4_D9/backend/public" />
     <title>Versity League — Collegiate Football</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -44,7 +44,7 @@
 
         <nav class="site-nav" id="nav-panel" aria-label="Primary">
           <a href="#standings">Standings</a>
-          <a href="#fixtures">Fixtures</a>
+          <a href="#fixtures">Fixture &amp; Results</a>
           <a href="#gallery">Gallery</a>
           <button type="button" class="link-btn" data-open-modal="modal-certificate">My certificate</button>
           <div class="nav-panel__actions">
@@ -120,7 +120,7 @@
             <p class="stat-card__value" id="home-stat-clubs">—</p>
           </article>
           <article class="stat-card">
-            <h2 class="stat-card__label">Athletes</h2>
+            <h2 class="stat-card__label">Total Players</h2>
             <p class="stat-card__value" id="home-stat-players">—</p>
           </article>
           <article class="stat-card stat-card--highlight">
@@ -159,13 +159,25 @@
           </div>
         </section>
 
-        <section id="fixtures" class="section section--fixtures" aria-labelledby="fixtures-title">
-          <h2 id="fixtures-title" class="section__title">Fixtures &amp; results</h2>
-          <div class="fixture-stack" id="fixture-stack">
-            <p class="form__hint home-api-status" id="fixture-stack-status">Loading fixtures…</p>
+        <section id="upcoming" class="section section--fixtures section--upcoming" aria-labelledby="upcoming-title">
+          <div class="section__head section__head--sub">
+            <h3 id="upcoming-title" class="section__title section__title--sub">Upcoming</h3>
+          </div>
+          <div class="fixture-stack" id="upcoming-stack">
+            <p class="form__hint home-api-status">Loading upcoming fixtures…</p>
           </div>
         </section>
       </div>
+
+      <section id="fixtures" class="section section--fixtures section--fixtures-full" aria-labelledby="fixtures-title">
+        <div class="section__head">
+          <h2 id="fixtures-title" class="section__title">Fixture &amp; Results</h2>
+          <span class="section__accent" aria-hidden="true"></span>
+        </div>
+        <div class="fixture-stack fixture-stack--full" id="fixture-results-stack">
+          <p class="form__hint home-api-status">Loading fixtures…</p>
+        </div>
+      </section>
 
       <section id="gallery" class="gallery" aria-labelledby="gallery-title">
         <div class="gallery__head">
@@ -211,11 +223,6 @@
       <div class="modal__panel">
         <button type="button" class="modal__close" data-close-modal aria-label="Close">&times;</button>
         <h2 id="modal-sign-in-title" class="modal__title">Sign in</h2>
-        <p class="modal__intro">
-          Use your email. For <strong>League admin</strong> accounts, choose <strong>League admin</strong> on the portal
-          slider (or sign in once as student/staff — we will retry as admin if the server asks for the correct portal).
-          Admins are then sent to the admin dashboard.
-        </p>
         <form class="form" id="form-sign-in" method="post" action="#" onsubmit="return false">
           <div class="form-feedback" role="alert" hidden></div>
           <label class="field">
@@ -226,24 +233,6 @@
             <span class="field__label">Password</span>
             <input type="password" name="password" autocomplete="current-password" required />
           </label>
-          <div class="field portal-slide">
-            <span class="field__label" id="signin-portal-label">Portal</span>
-            <div
-              class="portal-slide__wrap"
-              role="radiogroup"
-              aria-labelledby="signin-portal-label"
-            >
-              <span class="portal-slide__thumb" aria-hidden="true"></span>
-              <label class="portal-slide__btn">
-                <input type="radio" name="portal" value="client" checked required />
-                <span>Client</span>
-              </label>
-              <label class="portal-slide__btn">
-                <input type="radio" name="portal" value="admin" />
-                <span>Admin</span>
-              </label>
-            </div>
-          </div>
           <button type="button" class="btn btn--primary btn--block" id="btn-public-sign-in">Sign in</button>
           <p class="modal__footer-link">
             Don&apos;t have an account?
@@ -320,7 +309,11 @@
           <div><dt>Time</dt><dd id="md-time">—</dd></div>
           <div><dt>Venue</dt><dd id="md-venue">—</dd></div>
           <div><dt>Status</dt><dd id="md-status">—</dd></div>
-          <div><dt>Score</dt><dd id="md-score">—</dd></div>
+          <div id="md-row-score"><dt>Score</dt><dd id="md-score">—</dd></div>
+          <div id="md-row-home-goals"><dt>Home goals</dt><dd id="md-home-goals">—</dd></div>
+          <div id="md-row-away-goals"><dt>Away goals</dt><dd id="md-away-goals">—</dd></div>
+          <div id="md-row-home-assists"><dt>Home assists</dt><dd id="md-home-assists">—</dd></div>
+          <div id="md-row-away-assists"><dt>Away assists</dt><dd id="md-away-assists">—</dd></div>
         </dl>
         <p class="form__hint" id="md-hint" hidden></p>
       </div>
@@ -336,57 +329,59 @@
         >
           &times;
         </button>
-        <header class="certificate-modal__header">
-          <div class="certificate-modal__header-glow" aria-hidden="true"></div>
-          <div class="certificate-modal__header-inner">
-            <div class="certificate-modal__brand">
+        <div class="certificate-modal__shell">
+          <div class="certificate-card">
+            <div class="certificate-card__logo-wrap">
               <img
-                class="certificate-modal__logo"
-                src="../img/UniLogo.png?v=20260413"
-                alt="Versity League logo"
-                width="96"
+                class="certificate-card__logo"
+                src="../img/UniLogo1.png?v=20260415"
+                alt="University of Wolverhampton"
+                width="320"
                 height="96"
               />
-              <div class="certificate-modal__brand-text">
-                <span class="certificate-modal__org">Versity League</span>
-                <span class="certificate-modal__tagline">Official certificate</span>
-              </div>
             </div>
-          </div>
-          <div class="certificate-modal__header-rule" aria-hidden="true"></div>
-        </header>
-        <div class="certificate-modal__body">
-          <div class="certificate-frame">
-            <span class="certificate-frame__watermark" aria-hidden="true">VL</span>
-            <div class="certificate-frame__inner">
-              <p class="certificate-frame__ribbon" id="cert-ribbon">Certificate</p>
-              <h2 id="modal-cert-title" class="certificate-frame__title">Certificate</h2>
-              <div class="certificate-frame__divider" aria-hidden="true"></div>
-              <dl class="certificate-frame__dl">
-                <div><dt>Student / staff ID</dt><dd id="cert-dd-id">—</dd></div>
-                <div><dt>Name</dt><dd id="cert-dd-name">—</dd></div>
-                <div><dt>Participate years</dt><dd id="cert-dd-years">—</dd></div>
-                <div><dt>Position</dt><dd id="cert-dd-position">—</dd></div>
-                <div class="certificate-frame__row" id="cert-row-goals" hidden>
-                  <dt>Goals</dt>
+            <div class="certificate-card__title-block">
+              <h2 id="modal-cert-title" class="certificate-card__title">Certificate of Participation</h2>
+              <p class="certificate-card__subtitle">Versity League</p>
+            </div>
+            <div class="certificate-card__grid">
+              <dl class="certificate-card__dl" aria-label="Certificate details left">
+                <div>
+                  <dt>Student / staff ID</dt>
+                  <dd id="cert-dd-id">—</dd>
+                </div>
+                <div>
+                  <dt>Participated year</dt>
+                  <dd id="cert-dd-years">—</dd>
+                </div>
+                <div>
+                  <dt>Goal</dt>
                   <dd id="cert-dd-goals">0</dd>
                 </div>
-                <div class="certificate-frame__row" id="cert-row-assists" hidden>
-                  <dt>Assists</dt>
+              </dl>
+              <dl class="certificate-card__dl" aria-label="Certificate details right">
+                <div>
+                  <dt>Name</dt>
+                  <dd id="cert-dd-name">—</dd>
+                </div>
+                <div>
+                  <dt>Positions</dt>
+                  <dd id="cert-dd-position">—</dd>
+                </div>
+                <div>
+                  <dt>Assist</dt>
                   <dd id="cert-dd-assists">0</dd>
                 </div>
               </dl>
-              <div class="certificate-frame__seal" aria-hidden="true">
-                <span class="certificate-frame__seal-ring"></span>
-                <span class="certificate-frame__seal-text">Official</span>
-              </div>
-              <div class="certificate-frame__actions">
-                <button type="button" class="btn btn--ghost" data-close-modal>Close</button>
-                <button type="button" class="btn btn--gold" id="cert-btn-download" disabled>Download PDF</button>
-              </div>
-              <p class="certificate-frame__foot-note" id="cert-foot-note">Sign in to load your certificate.</p>
             </div>
+            <p class="certificate-card__copyright">© 2026 Versity League. All rights reserved.</p>
           </div>
+          <div class="certificate-modal__download-wrap">
+            <button type="button" class="certificate-modal__download-btn" id="cert-btn-download" disabled>
+              Download PDF
+            </button>
+          </div>
+          <p class="certificate-modal__status" id="cert-foot-note">Sign in to load your certificate.</p>
         </div>
       </div>
     </dialog>
@@ -463,6 +458,6 @@
       </div>
     </dialog>
 
-    <script src="js/main.js" type="module"></script>
+    <script src="js/main.js?v=20260417a" type="module"></script>
   </body>
 </html>

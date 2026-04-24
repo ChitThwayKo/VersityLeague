@@ -338,4 +338,127 @@ class AdminApiTest extends TestCase
         $this->assertDatabaseMissing('fixture_player_stats', ['id' => $create]);
     }
 
+    public function test_admin_can_patch_fixture_score_and_status(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $token = $admin->createToken('t')->plainTextToken;
+
+        $league = League::query()->create([
+            'name' => 'L-fix',
+            'year' => '2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+            'status' => 'active',
+        ]);
+        $managerA = User::factory()->create(['role' => UserRole::Client]);
+        $managerB = User::factory()->create(['role' => UserRole::Client]);
+        $clubA = Club::query()->create([
+            'manager_user_id' => $managerA->id,
+            'league_id' => $league->id,
+            'club_name' => 'Home FC',
+            'club_photo' => 'clubs/h.png',
+            'status' => 'approved',
+        ]);
+        $clubB = Club::query()->create([
+            'manager_user_id' => $managerB->id,
+            'league_id' => $league->id,
+            'club_name' => 'Away FC',
+            'club_photo' => 'clubs/a2.png',
+            'status' => 'approved',
+        ]);
+        $fixture = Fixture::query()->create([
+            'league_id' => $league->id,
+            'home_club_id' => $clubA->id,
+            'away_club_id' => $clubB->id,
+            'match_date' => '2026-05-01',
+            'match_time' => '15:00:00',
+            'venue' => 'Stadium',
+            'home_score' => null,
+            'away_score' => null,
+            'status' => 'upcoming',
+        ]);
+
+        $this->patchJson('/api/v1/admin/fixtures/'.$fixture->id, [
+            'status' => 'finished',
+            'home_score' => 2,
+            'away_score' => 1,
+        ], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk()
+            ->assertJsonPath('fixture.status', 'finished')
+            ->assertJsonPath('fixture.home_score', 2)
+            ->assertJsonPath('fixture.away_score', 1);
+    }
+
+    public function test_admin_can_patch_player_row_fields(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        $token = $admin->createToken('t')->plainTextToken;
+
+        $league = League::query()->create([
+            'name' => 'Season',
+            'year' => '2026',
+            'starts_on' => '2026-01-01',
+            'ends_on' => '2026-12-31',
+            'status' => 'active',
+        ]);
+
+        $managerA = User::factory()->create(['role' => UserRole::Client]);
+        $managerB = User::factory()->create(['role' => UserRole::Client]);
+
+        $clubA = Club::query()->create([
+            'manager_user_id' => $managerA->id,
+            'league_id' => $league->id,
+            'club_name' => 'Club A',
+            'club_photo' => 'clubs/a.png',
+            'status' => 'approved',
+        ]);
+        $clubB = Club::query()->create([
+            'manager_user_id' => $managerB->id,
+            'league_id' => $league->id,
+            'club_name' => 'Club B',
+            'club_photo' => 'clubs/b.png',
+            'status' => 'approved',
+        ]);
+
+        $player = Player::query()->create([
+            'club_id' => $clubA->id,
+            'student_staff_id' => 'PATCH-SSID-1',
+            'full_name' => 'Original',
+            'jersey_number' => 9,
+            'position' => 'GK',
+        ]);
+
+        $this->patchJson('/api/v1/admin/players/'.$player->id, [
+            'full_name' => 'Updated Name',
+            'position' => 'HC',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk()
+            ->assertJsonPath('player.full_name', 'Updated Name')
+            ->assertJsonPath('player.position', 'HC');
+
+        $this->patchJson('/api/v1/admin/players/'.$player->id, [
+            'club_id' => $clubB->id,
+        ], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk()
+            ->assertJsonPath('player.club_id', $clubB->id);
+
+        $this->patchJson('/api/v1/admin/players/'.$player->id, [
+            'student_staff_id' => 'PATCH-SSID-1',
+        ], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk();
+
+        $this->patchJson('/api/v1/admin/players/'.$player->id, [
+            'position' => null,
+        ], [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk()
+            ->assertJsonPath('player.position', null);
+    }
+
 }

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4/backend/public" />
+    <meta name="versity-api-base" content="http://localhost:8080/VersityLeague_V4_D9/backend/public" />
     <title>Versity League — Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -62,7 +62,6 @@
           <button type="button" data-panel="users" id="nav-users" hidden>User list</button>
           <button type="button" data-panel="photos">Gallery</button>
           <button type="button" data-panel="standings">Standings</button>
-          <button type="button" data-panel="certificates">Certificates</button>
           <a class="admin-nav__link" href="../index.html">Public site</a>
           <button type="button" class="admin-nav__logout" id="btn-nav-logout">Log out</button>
         </nav>
@@ -189,8 +188,9 @@
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>Photo</th>
                     <th>Name</th>
-                    <th>ID #</th>
+                    <th>Student/Staff Id</th>
                     <th>Position</th>
                     <th>Goals</th>
                     <th>Assists</th>
@@ -265,7 +265,7 @@
                     <th>When</th>
                     <th>Score</th>
                     <th>Status</th>
-                    <th></th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -326,35 +326,6 @@
                     <th data-sort="goals_against">GA</th>
                     <th data-sort="goal_difference">GD</th>
                     <th data-sort="points">Pts</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="panel-certificates" class="admin-panel">
-            <h2>Certificates</h2>
-            <p class="admin-muted">Staff review list. Search filters rows on this page. Download opens the PDF.</p>
-            <div class="admin-toolbar">
-              <label class="field" style="margin: 0; flex: 1; min-width: 12rem">
-                <span class="field__label">Search</span>
-                <input type="search" id="certificates-search" placeholder="Title, name, ID, email..." autocomplete="off" />
-              </label>
-              <button type="button" class="btn btn--primary" id="btn-certificates-refresh">Refresh</button>
-            </div>
-            <div class="admin-table-wrap">
-              <table class="admin-table" id="table-certificates">
-                <thead>
-                  <tr>
-                    <th data-cert-sort="title">Title</th>
-                    <th data-cert-sort="student_staff_id">Student / staff ID</th>
-                    <th data-cert-sort="user_name">Name</th>
-                    <th>Year</th>
-                    <th>Position</th>
-                    <th>Scored</th>
-                    <th>Assisted</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -427,7 +398,7 @@
       </div>
     </div>
 
-    <script src="js/admin.js?v=20260415d" type="module"></script>
+    <script src="js/admin.js?v=20260417c" type="module"></script>
     <script>
       window.setTimeout(() => {
         if (window.__VERSITY_ADMIN_BOOTED) return;

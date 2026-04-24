@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./config.js";
-import { apiGet, formatApiErrors, getToken, resolveBackendPublicFileUrl } from "./auth.js";
+import { apiGet, formatApiErrors, getToken, resolveBackendPublicFileUrl, setFormFeedback } from "./auth.js?v=20260417a";
 import { initGalleryCarousel, openModalById } from "./ui.js";
 
 const BADGE_MOD = ["", "club-badge--alt", "club-badge--green", "club-badge--orange"];
@@ -31,14 +31,30 @@ function statusLabel(s) {
   return m[s] || s || "—";
 }
 
+function formatPlayerStatList(entries) {
+  const rows = Array.isArray(entries) ? entries : [];
+  if (rows.length === 0) return "—";
+  return rows
+    .map((entry) => {
+      const name = String(entry?.player_name || "").trim() || "Unknown";
+      const qty = Number(entry?.quantity || 1);
+      return qty > 1 ? `${name} (${qty})` : name;
+    })
+    .join(", ");
+}
+
 function showHomeLoading() {
   const tbody = document.getElementById("standings-tbody");
   if (tbody) {
     tbody.innerHTML = `<tr><td colspan="7" class="home-api-status home-api-status--loading">Loading standings…</td></tr>`;
   }
-  const stack = document.getElementById("fixture-stack");
-  if (stack) {
-    stack.innerHTML = `<p class="form__hint home-api-status home-api-status--loading">Loading fixtures…</p>`;
+  const upcomingStack = document.getElementById("upcoming-stack");
+  if (upcomingStack) {
+    upcomingStack.innerHTML = `<p class="form__hint home-api-status home-api-status--loading">Loading upcoming fixtures…</p>`;
+  }
+  const resultStack = document.getElementById("fixture-results-stack");
+  if (resultStack) {
+    resultStack.innerHTML = `<p class="form__hint home-api-status home-api-status--loading">Loading fixtures…</p>`;
   }
   const track = document.getElementById("gallery-track");
   if (track) {
@@ -49,15 +65,17 @@ function showHomeLoading() {
 export async function loadPublicHomePage() {
   showHomeLoading();
   try {
-    const [stRes, fxRes, phRes] = await Promise.all([
+    const [stRes, fxRes, phRes, statsRes] = await Promise.all([
       apiGet("/api/v1/standings"),
       apiGet("/api/v1/fixtures"),
       apiGet("/api/v1/photos"),
+      apiGet("/api/v1/stats/home"),
     ]);
     renderStandings(stRes);
-    renderFixtures(fxRes);
+    renderUpcoming(fxRes);
+    renderFixtureResults(fxRes);
     renderGallery(phRes);
-    renderOverviewStrip(stRes, fxRes);
+    renderOverviewStrip(stRes, fxRes, statsRes);
   } catch {
     const failed = /** @type {{ ok: false, status: number, data: Record<string, unknown> }} */ ({
       ok: false,
@@ -65,13 +83,14 @@ export async function loadPublicHomePage() {
       data: {},
     });
     renderStandings(failed);
-    renderFixtures(failed);
+    renderUpcoming(failed);
+    renderFixtureResults(failed);
     renderGallery(failed);
-    renderOverviewStrip(failed, failed);
+    renderOverviewStrip(failed, failed, failed);
   }
 }
 
-function renderOverviewStrip(stRes, fxRes) {
+function renderOverviewStrip(stRes, fxRes, statsRes) {
   const seasonEl = document.getElementById("home-stat-season");
   const clubsEl = document.getElementById("home-stat-clubs");
   const playersEl = document.getElementById("home-stat-players");
@@ -94,7 +113,11 @@ function renderOverviewStrip(stRes, fxRes) {
   }
 
   if (playersEl) {
-    playersEl.textContent = "—";
+    if (statsRes.ok && typeof statsRes.data.total_players === "number") {
+      playersEl.textContent = String(statsRes.data.total_players);
+    } else {
+      playersEl.textContent = "—";
+    }
   }
 
   if (kickEl && metaEl) {
@@ -142,9 +165,13 @@ function renderStandings(res) {
       const badge = BADGE_MOD[i % BADGE_MOD.length];
       const name = String(r.club_name || "Club");
       const ini = initials(name);
+      const logoUrl = typeof r.club_photo_url === "string" ? resolveBackendPublicFileUrl(r.club_photo_url) : "";
+      const clubMark = logoUrl
+        ? `<img class="club-logo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(name)} logo" loading="lazy" />`
+        : `<span class="club-badge ${badge}" aria-hidden="true">${ini}</span>`;
       return `<tr>
         <td>${String(r.rank).padStart(2, "0")}</td>
-        <td><span class="club-cell"><span class="club-badge ${badge}" aria-hidden="true">${ini}</span> ${escapeHtml(name)}</span></td>
+        <td><span class="club-cell">${clubMark} ${escapeHtml(name)}</span></td>
         <td>${r.played}</td>
         <td>${r.won}</td>
         <td>${r.drawn}</td>
@@ -163,17 +190,92 @@ function escapeHtml(s) {
     .replaceAll('"', "&quot;");
 }
 
-function renderFixtures(res) {
-  const stack = document.getElementById("fixture-stack");
+function renderUpcoming(res) {
+  const stack = document.getElementById("upcoming-stack");
   if (!stack) return;
 
   if (!res.ok) {
     const line =
-      res.status === 0 ? "Fixtures unavailable (network error)." : "Fixtures unavailable.";
+      res.status === 0 ? "Upcoming fixtures unavailable (network error)." : "Upcoming fixtures unavailable.";
     stack.innerHTML = `<p class="form__hint home-api-status">${line}</p>`;
     return;
   }
 
+  const fixtures = /** @type {Record<string, unknown>[]} */ (res.data.fixtures || []);
+  const upcoming = fixtures
+    .filter((f) => String(f.status || "") === "upcoming")
+    .sort(
+      (a, b) =>
+        String(a.match_date || "").localeCompare(String(b.match_date || "")) ||
+        String(a.match_time || "").localeCompare(String(b.match_time || "")),
+    )
+    .slice(0, 2);
+
+  if (upcoming.length === 0) {
+    stack.innerHTML = `<p class="form__hint home-api-status">No upcoming fixtures yet.</p>`;
+    return;
+  }
+
+  stack.innerHTML = upcoming
+    .map((f, i) => {
+      const cardClass = "fixture-card fixture-card--upcoming";
+      const homeClub = f.home_club && /** @type {{club_name:string, club_photo_url?:string|null}} */ (f.home_club);
+      const awayClub = f.away_club && /** @type {{club_name:string, club_photo_url?:string|null}} */ (f.away_club);
+      const hn = homeClub?.club_name;
+      const an = awayClub?.club_name;
+      const hLogo = homeClub?.club_photo_url ? resolveBackendPublicFileUrl(String(homeClub.club_photo_url)) : "";
+      const aLogo = awayClub?.club_photo_url ? resolveBackendPublicFileUrl(String(awayClub.club_photo_url)) : "";
+      const lg = f.league && /** @type {{name:string}} */ (f.league).name;
+      const badgeH = BADGE_MOD[i % BADGE_MOD.length];
+      const badgeA = BADGE_MOD[(i + 1) % BADGE_MOD.length];
+      const metaPill = `<span class="pill pill--on-dark">Upcoming</span>`;
+      const scoreBlock = `<div class="fixture-score"><span class="fixture-score__vs">vs</span><span class="fixture-score__ft">${formatTime(String(f.match_time))}</span></div>`;
+      const venue =
+        f.venue && String(f.venue).trim()
+          ? `<p class="fixture-card__venue"><span aria-hidden="true">📍</span> ${escapeHtml(String(f.venue))}</p>`
+          : "";
+      const btnClass = "btn btn--block btn--gold";
+      const btnLabel = "Match preview";
+      return `<article class="${cardClass}">
+        <div class="fixture-card__meta">
+          ${metaPill}
+          <time datetime="${escapeHtml(String(f.match_date))}">${escapeHtml(formatDate(String(f.match_date)))}</time>
+          ${lg ? `<span class="pill">${escapeHtml(lg)}</span>` : ""}
+        </div>
+        <div class="fixture-card__scoreboard">
+          <div class="fixture-team">
+            ${
+              hLogo
+                ? `<img class="club-logo" src="${escapeHtml(hLogo)}" alt="${escapeHtml(String(hn || "Home club"))} logo" loading="lazy" />`
+                : `<span class="club-badge club-badge--ghost ${badgeH}" aria-hidden="true">${escapeHtml(initials(hn))}</span>`
+            }
+            <span class="fixture-team__name">${escapeHtml(String(hn))}</span>
+          </div>
+          ${scoreBlock}
+          <div class="fixture-team">
+            ${
+              aLogo
+                ? `<img class="club-logo" src="${escapeHtml(aLogo)}" alt="${escapeHtml(String(an || "Away club"))} logo" loading="lazy" />`
+                : `<span class="club-badge club-badge--ghost ${badgeA}" aria-hidden="true">${escapeHtml(initials(an))}</span>`
+            }
+            <span class="fixture-team__name">${escapeHtml(String(an))}</span>
+          </div>
+        </div>
+        ${venue}
+        <button type="button" class="${btnClass}" data-open-modal="modal-match-details" data-fixture-id="${f.id}">${btnLabel}</button>
+      </article>`;
+    })
+    .join("");
+}
+
+function renderFixtureResults(res) {
+  const stack = document.getElementById("fixture-results-stack");
+  if (!stack) return;
+  if (!res.ok) {
+    const line = res.status === 0 ? "Fixtures unavailable (network error)." : "Fixtures unavailable.";
+    stack.innerHTML = `<p class="form__hint home-api-status">${line}</p>`;
+    return;
+  }
   const fixtures = /** @type {Record<string, unknown>[]} */ (res.data.fixtures || []);
   if (fixtures.length === 0) {
     stack.innerHTML = `<p class="form__hint home-api-status">No fixtures published yet.</p>`;
@@ -183,9 +285,13 @@ function renderFixtures(res) {
   stack.innerHTML = fixtures
     .map((f, i) => {
       const finished = f.status === "finished" && f.home_score != null && f.away_score != null;
-      const cardClass = finished ? "fixture-card fixture-card--result" : "fixture-card fixture-card--upcoming";
-      const hn = f.home_club && /** @type {{club_name:string}} */ (f.home_club).club_name;
-      const an = f.away_club && /** @type {{club_name:string}} */ (f.away_club).club_name;
+      const cardClass = "fixture-card";
+      const homeClub = f.home_club && /** @type {{club_name:string, club_photo_url?:string|null}} */ (f.home_club);
+      const awayClub = f.away_club && /** @type {{club_name:string, club_photo_url?:string|null}} */ (f.away_club);
+      const hn = homeClub?.club_name;
+      const an = awayClub?.club_name;
+      const hLogo = homeClub?.club_photo_url ? resolveBackendPublicFileUrl(String(homeClub.club_photo_url)) : "";
+      const aLogo = awayClub?.club_photo_url ? resolveBackendPublicFileUrl(String(awayClub.club_photo_url)) : "";
       const lg = f.league && /** @type {{name:string}} */ (f.league).name;
       const badgeH = BADGE_MOD[i % BADGE_MOD.length];
       const badgeA = BADGE_MOD[(i + 1) % BADGE_MOD.length];
@@ -202,17 +308,25 @@ function renderFixtures(res) {
       return `<article class="${cardClass}">
         <div class="fixture-card__meta">
           ${metaPill}
-          <time datetime="${escapeHtml(String(f.match_date))}">${escapeHtml(String(f.match_date))}</time>
+          <time datetime="${escapeHtml(String(f.match_date))}">${escapeHtml(formatDate(String(f.match_date)))}</time>
           ${lg ? `<span class="pill">${escapeHtml(lg)}</span>` : ""}
         </div>
         <div class="fixture-card__scoreboard">
           <div class="fixture-team">
-            <span class="club-badge ${finished ? "" : "club-badge--ghost"} ${badgeH}" aria-hidden="true">${escapeHtml(initials(hn))}</span>
+            ${
+              hLogo
+                ? `<img class="club-logo" src="${escapeHtml(hLogo)}" alt="${escapeHtml(String(hn || "Home club"))} logo" loading="lazy" />`
+                : `<span class="club-badge club-badge--ghost ${badgeH}" aria-hidden="true">${escapeHtml(initials(hn))}</span>`
+            }
             <span class="fixture-team__name">${escapeHtml(String(hn))}</span>
           </div>
           ${scoreBlock}
           <div class="fixture-team">
-            <span class="club-badge ${finished ? "" : "club-badge--ghost"} ${badgeA}" aria-hidden="true">${escapeHtml(initials(an))}</span>
+            ${
+              aLogo
+                ? `<img class="club-logo" src="${escapeHtml(aLogo)}" alt="${escapeHtml(String(an || "Away club"))} logo" loading="lazy" />`
+                : `<span class="club-badge club-badge--ghost ${badgeA}" aria-hidden="true">${escapeHtml(initials(an))}</span>`
+            }
             <span class="fixture-team__name">${escapeHtml(String(an))}</span>
           </div>
         </div>
@@ -261,6 +375,11 @@ export async function openMatchDetailsModal(fixtureId) {
   setText("md-venue", "—");
   setText("md-status", "—");
   setText("md-score", "—");
+  setText("md-home-goals", "—");
+  setText("md-away-goals", "—");
+  setText("md-home-assists", "—");
+  setText("md-away-assists", "—");
+  setMatchStatRowsVisible(true);
   if (hint) {
     hint.textContent = "Loading match…";
     hint.hidden = false;
@@ -289,7 +408,10 @@ export async function openMatchDetailsModal(fixtureId) {
   setText("md-time", formatTime(String(f.match_time)));
   setText("md-venue", String(f.venue || "—"));
   setText("md-status", statusLabel(String(f.status)));
-  if (f.status === "finished" && f.home_score != null && f.away_score != null) {
+  const isFinished = f.status === "finished" && f.home_score != null && f.away_score != null;
+  setMatchStatRowsVisible(isFinished);
+
+  if (isFinished) {
     setText("md-score", `${f.home_score} – ${f.away_score}`);
   } else if (f.status === "postponed") {
     setText("md-score", "Postponed");
@@ -297,7 +419,29 @@ export async function openMatchDetailsModal(fixtureId) {
     setText("md-score", "—");
   }
 
+  const stats = f.player_stats && typeof f.player_stats === "object" ? f.player_stats : {};
+  const home = stats.home && typeof stats.home === "object" ? stats.home : {};
+  const away = stats.away && typeof stats.away === "object" ? stats.away : {};
+  setText("md-home-goals", formatPlayerStatList(home.goals));
+  setText("md-away-goals", formatPlayerStatList(away.goals));
+  setText("md-home-assists", formatPlayerStatList(home.assists));
+  setText("md-away-assists", formatPlayerStatList(away.assists));
+
   if (hint) hint.hidden = true;
+}
+
+function setMatchStatRowsVisible(visible) {
+  const rowIds = [
+    "md-row-score",
+    "md-row-home-goals",
+    "md-row-away-goals",
+    "md-row-home-assists",
+    "md-row-away-assists",
+  ];
+  rowIds.forEach((id) => {
+    const row = document.getElementById(id);
+    if (row) row.hidden = !visible;
+  });
 }
 
 function setText(id, text) {
@@ -331,26 +475,29 @@ export function initDay6ModalCapture() {
   );
 }
 
-let currentCertificateId = null;
+/** @type {string | null} */
+let certificatePdfRequestPath = null;
 
 async function openCertificateFlow() {
   const dialog = document.getElementById("modal-certificate");
   if (!dialog?.showModal) return;
 
   hideGoalsAssists();
+  certificatePdfRequestPath = null;
 
   const foot = document.getElementById("cert-foot-note");
   const dlBtn = document.getElementById("cert-btn-download");
   const title = document.getElementById("modal-cert-title");
-  const ribbon = document.getElementById("cert-ribbon");
 
   if (!getToken()) {
-    currentCertificateId = null;
     if (dlBtn) dlBtn.disabled = true;
     if (foot) foot.textContent = "Sign in to view your certificate.";
-    if (title) title.textContent = "Certificate";
-    if (ribbon) ribbon.textContent = "Certificate";
+    if (title) title.textContent = "Certificate of Participation";
     openModalById("modal-sign-in");
+    const signInForm = document.getElementById("form-sign-in");
+    if (signInForm) {
+      setFormFeedback(signInForm, "Sing in to view achievements", "error");
+    }
     return;
   }
 
@@ -361,71 +508,81 @@ async function openCertificateFlow() {
 
   const res = await apiGet("/api/v1/certificates", { auth: true });
   if (!res.ok) {
-    currentCertificateId = null;
+    certificatePdfRequestPath = null;
     if (dlBtn) dlBtn.disabled = true;
     if (foot) foot.textContent = formatApiErrors(res.data, { status: res.status });
-    if (title) title.textContent = "Certificate";
-    if (ribbon) ribbon.textContent = "Certificate";
+    if (title) title.textContent = "Certificate of Participation";
     setText("cert-dd-id", "—");
     setText("cert-dd-name", "—");
     setText("cert-dd-years", "—");
     setText("cert-dd-position", "—");
-    hideGoalsAssists();
+    setText("cert-dd-goals", "0");
+    setText("cert-dd-assists", "0");
     return;
   }
 
   if (!Array.isArray(res.data.certificates) || res.data.certificates.length === 0) {
-    currentCertificateId = null;
+    certificatePdfRequestPath = null;
     if (dlBtn) dlBtn.disabled = true;
     if (foot) foot.textContent = "No certificate on file for your account yet.";
-    if (title) title.textContent = "Certificate";
-    if (ribbon) ribbon.textContent = "Certificate";
+    if (title) title.textContent = "Certificate of Participation";
     setText("cert-dd-id", "—");
     setText("cert-dd-name", "—");
     setText("cert-dd-years", "—");
     setText("cert-dd-position", "—");
-    hideGoalsAssists();
+    setText("cert-dd-goals", "0");
+    setText("cert-dd-assists", "0");
     return;
   }
 
   const c = /** @type {Record<string, unknown>} */ (res.data.certificates[0]);
-  currentCertificateId = Number(c.id);
+  const rawId = c.id;
+  const hasRecordId =
+    rawId !== null &&
+    rawId !== undefined &&
+    rawId !== "" &&
+    Number.isFinite(Number(rawId)) &&
+    Number(rawId) > 0;
+
+  if (hasRecordId) {
+    certificatePdfRequestPath = `/api/v1/certificates/${Number(rawId)}/pdf`;
+  } else {
+    certificatePdfRequestPath = "/api/v1/certificates/profile-pdf";
+  }
+
   if (dlBtn) dlBtn.disabled = false;
   if (foot) foot.textContent = "Official record — download PDF for your files.";
-  if (title) title.textContent = String(c.title || "Certificate");
-  if (ribbon) ribbon.textContent = String(c.type || "Certificate").replaceAll("_", " ");
+  if (title) title.textContent = String(c.title || "Certificate of Participation");
 
-  setText("cert-dd-id", String(c.student_staff_id || "—"));
-  setText("cert-dd-name", "—");
-  await fillCertificateNameFromMe();
-  setText("cert-dd-years", `${c.participate_year_start} – ${c.participate_year_end}`);
-  setText("cert-dd-position", String(c.positions_played || "—"));
+  const staffId = String(c.student_staff_id ?? "").trim();
+  setText("cert-dd-id", staffId || "—");
 
-  const goalsRow = document.getElementById("cert-row-goals");
-  const asstRow = document.getElementById("cert-row-assists");
-  const goalsDd = document.getElementById("cert-dd-goals");
-  const asstDd = document.getElementById("cert-dd-assists");
+  const fromApi = String(c.recipient_name ?? "").trim();
+  if (fromApi && fromApi !== "Participant") {
+    setText("cert-dd-name", fromApi);
+  } else {
+    setText("cert-dd-name", "—");
+    await fillCertificateNameFromMe();
+  }
+
+  const startYear = Number(c.participate_year_start);
+  const endYear = Number(c.participate_year_end);
+  if (startYear > 0 && endYear > 0) {
+    setText("cert-dd-years", `${startYear} – ${endYear}`);
+  } else {
+    setText("cert-dd-years", "—");
+  }
+  setText("cert-dd-position", String(c.positions_played ?? "").trim() || "—");
+
   const scored = Number(c.scored || 0);
   const assisted = Number(c.assisted || 0);
-  if (scored > 0 && goalsRow && goalsDd) {
-    goalsDd.textContent = String(scored);
-    goalsRow.hidden = false;
-  } else if (goalsRow) {
-    goalsRow.hidden = true;
-  }
-  if (assisted > 0 && asstRow && asstDd) {
-    asstDd.textContent = String(assisted);
-    asstRow.hidden = false;
-  } else if (asstRow) {
-    asstRow.hidden = true;
-  }
+  setText("cert-dd-goals", String(scored));
+  setText("cert-dd-assists", String(assisted));
 }
 
 function hideGoalsAssists() {
-  const g = document.getElementById("cert-row-goals");
-  const a = document.getElementById("cert-row-assists");
-  if (g) g.hidden = true;
-  if (a) a.hidden = true;
+  setText("cert-dd-goals", "0");
+  setText("cert-dd-assists", "0");
 }
 
 async function fillCertificateNameFromMe() {
@@ -438,9 +595,9 @@ async function fillCertificateNameFromMe() {
 
 export function wireCertificateDownload() {
   document.getElementById("cert-btn-download")?.addEventListener("click", async () => {
-    if (!currentCertificateId || !getToken()) return;
+    if (!getToken() || !certificatePdfRequestPath) return;
     const foot = document.getElementById("cert-foot-note");
-    const res = await fetch(`${API_BASE_URL}/api/v1/certificates/${currentCertificateId}/pdf`, {
+    const res = await fetch(`${API_BASE_URL}${certificatePdfRequestPath}`, {
       headers: { Authorization: `Bearer ${getToken()}`, Accept: "application/pdf" },
     });
     if (!res.ok) {
@@ -461,7 +618,9 @@ export function wireCertificateDownload() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `versity-certificate-${currentCertificateId}.pdf`;
+    const cd = res.headers.get("content-disposition") || "";
+    const m = cd.match(/filename="([^"]+)"/i);
+    a.download = m?.[1] ? m[1] : "versity-certificate.pdf";
     a.click();
     URL.revokeObjectURL(url);
   });

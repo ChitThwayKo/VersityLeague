@@ -30,19 +30,34 @@ export function resolveBackendPublicFileUrl(rawUrl) {
     if (/^https?:\/\//i.test(input)) {
       const u = new URL(input);
       const p = u.pathname.replace(/\\/g, "/");
-      const storageIdx = p.indexOf("/storage/");
-      if (storageIdx === -1) return input;
-      const storagePath = p.slice(storageIdx);
-      const candidate = underPublic(storagePath);
-      if (candidate === input) return input;
       const localLike =
         u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.port === "8000";
-      if (!localLike) return input;
-      return candidate;
+
+      const storageIdx = p.indexOf("/storage/");
+      if (storageIdx !== -1) {
+        const candidate = underPublic(p.slice(storageIdx));
+        if (candidate !== input) {
+          if (!localLike) return input;
+          return candidate;
+        }
+      }
+
+      const apiIdx = p.indexOf("/api/");
+      if (apiIdx !== -1 && localLike) {
+        const candidate = `${publicRoot}${p.slice(apiIdx)}${u.search || ""}`;
+        if (candidate !== input) return candidate;
+      }
+
+      return input;
     }
 
     if (input.startsWith("/storage/") || input === "/storage") {
       return underPublic(input === "/storage" ? "/storage/" : input);
+    }
+
+    // Path-only "/api/v1/..." resolves against /frontend/admin/ and misses .../backend/public → 404.
+    if (input.startsWith("/api/")) {
+      return `${publicRoot}${input}`;
     }
 
     return input;
@@ -151,11 +166,17 @@ export async function apiPatchForm(path, formData) {
   const headers = { Accept: "application/json" };
   const t = getToken();
   if (t) headers.Authorization = `Bearer ${t}`;
+  const body = new FormData();
+  for (const [key, value] of formData.entries()) {
+    body.append(key, value);
+  }
+  // Laravel/PHP reliably handles file uploads via POST multipart with method spoofing.
+  if (!body.has("_method")) body.append("_method", "PATCH");
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    method: "PATCH",
+    method: "POST",
     headers,
-    body: formData,
+    body,
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };

@@ -23,12 +23,11 @@ class AdminClubController extends Controller
         $query = Club::query()
             ->with(['manager:id,name,email,student_staff_id', 'league:id,name,year'])
             ->with(['players' => function ($query): void {
-                $query
-                    ->select(['id', 'club_id', 'full_name', 'student_staff_id', 'position'])
-                    ->withSum([
-                        'fixtureStats as goals_count' => fn ($q) => $q->where('stat_type', 'goal'),
-                        'fixtureStats as assists_count' => fn ($q) => $q->where('stat_type', 'assist'),
-                    ], 'quantity');
+                $query->select(['id', 'club_id', 'full_name', 'student_staff_id', 'position', 'jersey_number', 'player_photo']);
+                $query->withCount([
+                    'fixtureStats as goals_count' => fn ($q) => $q->where('stat_type', 'goal'),
+                    'fixtureStats as assists_count' => fn ($q) => $q->where('stat_type', 'assist'),
+                ]);
             }])
             ->withCount('players')
             ->orderByDesc('created_at');
@@ -47,15 +46,15 @@ class AdminClubController extends Controller
         $club->load([
             'manager:id,name,email,student_staff_id',
             'players' => function ($query): void {
-                $query->withSum([
+                $query->withCount([
                     'fixtureStats as goals_count' => fn ($q) => $q->where('stat_type', 'goal'),
                     'fixtureStats as assists_count' => fn ($q) => $q->where('stat_type', 'assist'),
-                ], 'quantity');
+                ]);
             },
         ]);
 
         return response()->json([
-            'club' => $this->serializeClub($club, includePlayers: true),
+            'club' => $this->serializeClub($club),
         ]);
     }
 
@@ -110,9 +109,9 @@ class AdminClubController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function serializeClub(Club $club, bool $includePlayers = false): array
+    private function serializeClub(Club $club): array
     {
-        $row = [
+        return [
             'id' => $club->id,
             'manager_user_id' => $club->manager_user_id,
             'league_id' => $club->league_id,
@@ -139,23 +138,9 @@ class AdminClubController extends Controller
                 ]
                 : null,
             'players' => $club->relationLoaded('players')
-                ? $club->players->map(static fn (Player $player) => [
-                    'id' => $player->id,
-                    'club_id' => $player->club_id,
-                    'full_name' => $player->full_name,
-                    'student_staff_id' => $player->student_staff_id,
-                    'position' => $player->position,
-                    'goals_count' => (int) ($player->goals_count ?? 0),
-                    'assists_count' => (int) ($player->assists_count ?? 0),
-                ])->values()
+                ? $club->players->map(fn (Player $p) => $this->serializePlayer($p))->values()
                 : [],
         ];
-
-        if ($includePlayers && $club->relationLoaded('players')) {
-            $row['players'] = $club->players->map(fn ($p) => $this->serializePlayer($p));
-        }
-
-        return $row;
     }
 
     /**
@@ -163,6 +148,9 @@ class AdminClubController extends Controller
      */
     private function serializePlayer(Player $player): array
     {
+        $fallbackGoals = $player->fixtureStats()->where('stat_type', 'goal')->count();
+        $fallbackAssists = $player->fixtureStats()->where('stat_type', 'assist')->count();
+
         return [
             'id' => $player->id,
             'club_id' => $player->club_id,
@@ -172,8 +160,8 @@ class AdminClubController extends Controller
             'position' => $player->position,
             'player_photo' => $player->player_photo,
             'player_photo_url' => PublicStorageUrl::url($player->player_photo),
-            'goals_count' => (int) ($player->goals_count ?? ($player->fixtureStats()->where('stat_type', 'goal')->sum('quantity') ?: 0)),
-            'assists_count' => (int) ($player->assists_count ?? ($player->fixtureStats()->where('stat_type', 'assist')->sum('quantity') ?: 0)),
+            'goals_count' => (int) ($player->goals_count ?? $fallbackGoals),
+            'assists_count' => (int) ($player->assists_count ?? $fallbackAssists),
             'created_at' => $player->created_at,
             'updated_at' => $player->updated_at,
         ];

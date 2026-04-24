@@ -33,7 +33,11 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // When true, Laravel registers GET/PUT `storage/{path}` for the **private** disk and
+            // overrides any app route with the same URI (often causing 403 for `/storage/photos/*`
+            // which actually lives on the **public** disk). Public uploads are served via
+            // `ServePublicStorageFileController` + `public/.htaccess` (XAMPP junction 403 workaround).
+            'serve' => env('FILESYSTEM_LOCAL_SERVE', false),
             'throw' => false,
             'report' => false,
         ],

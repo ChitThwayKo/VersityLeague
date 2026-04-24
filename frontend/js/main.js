@@ -9,7 +9,7 @@ import {
   getToken,
   setFormFeedback,
   setToken,
-} from "./auth.js";
+} from "./auth.js?v=20260417a";
 import {
   initDay6ModalCapture,
   loadPublicHomePage,
@@ -410,11 +410,11 @@ async function runPublicSignIn() {
   const body = {
     email: String(fd.get("email") || ""),
     password: String(fd.get("password") || ""),
-    portal: String(fd.get("portal") || "client"),
+    portal: "client",
   };
   try {
     let { ok, data, status } = await apiPostJson("/api/v1/auth/login", body, { auth: false });
-    if (!ok && body.portal === "client" && hasPortalValidationErrors(data)) {
+    if (!ok && hasPortalValidationErrors(data)) {
       const second = await apiPostJson("/api/v1/auth/login", { ...body, portal: "admin" }, { auth: false });
       if (second.ok) {
         ok = second.ok;

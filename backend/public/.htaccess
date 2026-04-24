@@ -13,6 +13,10 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # XAMPP/Windows: Apache may return 403 for /storage/* when public/storage is a junction/symlink
+    # and FollowSymLinks is not enabled. Route through Laravel so files are read from storage/app/public.
+    RewriteRule ^storage(?:$|/.*) index.php [L]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$

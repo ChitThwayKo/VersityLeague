@@ -26,7 +26,8 @@ class UpdateAdminPlayerRequest extends FormRequest
                 Rule::unique('players', 'student_staff_id')->ignore($this->route('player')),
             ],
             'jersey_number' => ['nullable', 'integer', 'min:0', 'max:99999'],
-            'position' => ['sometimes', 'string', 'max:100'],
+            'position' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'club_id' => ['sometimes', 'integer', 'exists:clubs,id'],
             'player_photo' => ['nullable', 'image', 'max:5120'],
         ];
     }

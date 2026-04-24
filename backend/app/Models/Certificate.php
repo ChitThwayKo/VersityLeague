@@ -38,4 +38,55 @@ class Certificate extends Model
     {
         return $this->belongsTo(Club::class);
     }
+
+    /**
+     * Display name for certificate UI/PDF: staff id on the certificate first (authoritative),
+     * then linked user (legacy rows may point at a placeholder account).
+     */
+    public function recipientDisplayName(): string
+    {
+        $ssid = trim((string) ($this->student_staff_id ?? ''));
+        if ($ssid !== '') {
+            $byUser = User::query()
+                ->whereRaw('TRIM(COALESCE(student_staff_id, \'\')) = ?', [$ssid])
+                ->value('name');
+            if ($byUser) {
+                return (string) $byUser;
+            }
+            $byPlayer = Player::query()
+                ->whereRaw('TRIM(COALESCE(student_staff_id, \'\')) = ?', [$ssid])
+                ->value('full_name');
+            if ($byPlayer) {
+                return (string) $byPlayer;
+            }
+        }
+
+        $this->loadMissing('user');
+        if ($this->user && filled($this->user->name)) {
+            return (string) $this->user->name;
+        }
+
+        return 'Participant';
+    }
+
+    /**
+     * Positions line: stored positions_played, else player.position for this staff id.
+     */
+    public function positionsDisplay(): string
+    {
+        if (filled($this->positions_played)) {
+            return (string) $this->positions_played;
+        }
+
+        $ssid = trim((string) ($this->student_staff_id ?? ''));
+        if ($ssid === '') {
+            return '—';
+        }
+
+        $pos = Player::query()
+            ->whereRaw('TRIM(COALESCE(student_staff_id, \'\')) = ?', [$ssid])
+            ->value('position');
+
+        return $pos ? (string) $pos : '—';
+    }
 }

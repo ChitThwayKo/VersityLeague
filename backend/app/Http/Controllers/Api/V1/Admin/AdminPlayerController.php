@@ -9,6 +9,7 @@ use App\Models\Club;
 use App\Models\Player;
 use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 
 class AdminPlayerController extends Controller
@@ -22,7 +23,8 @@ class AdminPlayerController extends Controller
 
     public function store(StoreAdminPlayerRequest $request, Club $club): JsonResponse
     {
-        $data = $request->safe()->except(['player_photo']);
+        /** @var array<string, mixed> $data */
+        $data = $request->safe()->except(['player_photo'])->all();
 
         $playerPhotoPath = null;
         if ($request->hasFile('player_photo')) {
@@ -43,7 +45,8 @@ class AdminPlayerController extends Controller
 
     public function update(UpdateAdminPlayerRequest $request, Player $player): JsonResponse
     {
-        $payload = $request->safe()->except(['player_photo']);
+        /** @var array<string, mixed> $payload */
+        $payload = Arr::except($request->validated(), ['player_photo']);
 
         if ($request->hasFile('player_photo')) {
             if ($player->player_photo) {
@@ -52,7 +55,7 @@ class AdminPlayerController extends Controller
             $payload['player_photo'] = $request->file('player_photo')->store('players', 'public');
         }
 
-        $player->update($payload->all());
+        $player->update($payload);
         $player->refresh();
 
         return response()->json(['player' => $this->serializePlayer($player)]);

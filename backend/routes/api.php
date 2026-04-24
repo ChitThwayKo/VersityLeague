@@ -13,8 +13,10 @@ use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\ClubRegistrationController;
 use App\Http\Controllers\Api\V1\PublicFixtureController;
 use App\Http\Controllers\Api\V1\PublicLeagueController;
+use App\Http\Controllers\Api\V1\PhotoFileDownloadController;
 use App\Http\Controllers\Api\V1\PublicPhotoController;
 use App\Http\Controllers\Api\V1\PublicStandingController;
+use App\Http\Controllers\Api\V1\PublicStatsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +38,10 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/fixtures/{fixture}', [PublicFixtureController::class, 'show']);
     Route::get('/leagues/active', [PublicLeagueController::class, 'active']);
     Route::get('/standings', [PublicStandingController::class, 'index']);
+    Route::get('/stats/home', [PublicStatsController::class, 'home']);
+    Route::get('/photos/{photo}/file', [PhotoFileDownloadController::class, 'show'])
+        ->middleware('signed')
+        ->name('api.v1.photos.file');
     Route::get('/photos', [PublicPhotoController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
@@ -89,6 +95,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('client');
 
         Route::get('/certificates', [CertificateController::class, 'index']);
+        Route::get('/certificates/profile-pdf', [CertificateController::class, 'profilePdf']);
         Route::get('/certificates/{certificate}/pdf', [CertificateController::class, 'pdf']);
     });
 });

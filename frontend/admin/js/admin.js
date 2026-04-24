@@ -2,7 +2,6 @@ import { API_BASE_URL } from "../../js/config.js";
 import {
   apiDelete,
   apiGet,
-  apiPatchForm,
   apiPatchJson,
   apiPostForm,
   apiPostJson,
@@ -11,7 +10,7 @@ import {
   getToken,
   resolveBackendPublicFileUrl,
   setToken,
-} from "../../js/auth.js";
+} from "../../js/auth.js?v=20260417a";
 import { initPasswordToggles } from "../../js/ui.js";
 
 if (typeof window !== "undefined") {
@@ -23,6 +22,8 @@ let leaguesCache = [];
 let editingLeagueId = null;
 let editingUserKey = null;
 let editingClubId = null;
+let editingPlayerId = null;
+let editingFixtureId = null;
 /** @type {Record<string, unknown>[]} */
 let clubsCache = [];
 /** @type {Record<string, unknown>[]} */
@@ -32,6 +33,7 @@ let playersCache = [];
 /** @type {Record<string, unknown>[]} */
 let fixtureStatsRows = [];
 let editingFixtureStatId = null;
+let editingPhotoId = null;
 /** @type {{ name: string; role: string } | null} */
 let currentUser = null;
 
@@ -40,10 +42,6 @@ let standingsRows = [];
 let standingsSortKey = "rank";
 let standingsSortDir = 1;
 
-/** @type {Record<string, unknown>[]} */
-let certificatesRaw = [];
-let certSortKey = "title";
-let certSortDir = 1;
 
 function getPasswordRequirementIssue(password) {
   const value = String(password || "");
@@ -349,31 +347,81 @@ function renderPlayersTableFromCache() {
         position: p.position,
         goals_count: Number(p.goals_count ?? 0),
         assists_count: Number(p.assists_count ?? 0),
+        player_photo_url: typeof p.player_photo_url === "string" ? p.player_photo_url : "",
+        club_id: club.id,
         club_name: club.club_name,
+        league_id: club.league_id ?? null,
         year: seasonText,
       });
     }
   }
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="admin-muted">No players found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="admin-muted">No players found.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = rows
-    .map(
-      (p) => `<tr>
+    .map((p) => {
+      const isEditing = editingPlayerId !== null && Number(editingPlayerId) === Number(p.id);
+      const yearOptions = leaguesCache
+        .map(
+          (l) =>
+            `<option value="${l.id}" ${String(l.id) === String(p.league_id ?? "") ? "selected" : ""}>${escapeHtml(
+              l.year,
+            )}</option>`,
+        )
+        .join("");
+      const clubOptions = clubsCache
+        .filter((c) => String(c.league_id ?? "") === String(p.league_id ?? ""))
+        .map(
+          (c) =>
+            `<option value="${c.id}" ${String(c.id) === String(p.club_id ?? "") ? "selected" : ""}>${escapeHtml(
+              String(c.club_name ?? ""),
+            )}</option>`,
+        )
+        .join("");
+      const photoUrl = resolveBackendPublicFileUrl(String(p.player_photo_url ?? ""));
+      const photoCell = photoUrl
+        ? `<img class="thumb" src="${escapeHtml(photoUrl)}" alt="" loading="lazy" />`
+        : `<span class="admin-muted">—</span>`;
+      return `<tr data-player-id="${p.id}">
       <td>${p.id}</td>
-      <td>${escapeHtml(String(p.full_name ?? ""))}</td>
-      <td>${escapeHtml(String(p.student_staff_id ?? ""))}</td>
-      <td>${escapeHtml(String(p.position ?? ""))}</td>
+      <td>${photoCell}</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-player-name" value="${escapeHtml(String(p.full_name ?? ""))}" />`
+          : escapeHtml(String(p.full_name ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-player-ssid" value="${escapeHtml(String(p.student_staff_id ?? ""))}" />`
+          : escapeHtml(String(p.student_staff_id ?? ""))
+      }</td>
+      <td>${
+        isEditing
+          ? `<input type="text" class="inp-player-position" value="${escapeHtml(String(p.position ?? ""))}" />`
+          : escapeHtml(String(p.position ?? ""))
+      }</td>
       <td>${escapeHtml(String(p.goals_count ?? 0))}</td>
       <td>${escapeHtml(String(p.assists_count ?? 0))}</td>
-      <td>${escapeHtml(String(p.club_name ?? ""))}</td>
-      <td>${escapeHtml(String(p.year ?? "—"))}</td>
-      <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-player-del" data-id="${p.id}" title="Delete" aria-label="Delete">&#128465;</button></td>
-    </tr>`,
-    )
+      <td>${
+        isEditing ? `<select class="inp-player-club">${clubOptions}</select>` : escapeHtml(String(p.club_name ?? ""))
+      }</td>
+      <td>${
+        isEditing ? `<select class="inp-player-year">${yearOptions}</select>` : escapeHtml(String(p.year ?? "—"))
+      }</td>
+      <td>
+        ${
+          isEditing
+            ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-player-save" title="Save" aria-label="Save">&#128190;</button>
+               <button type="button" class="btn btn--ghost btn--sm btn-player-cancel">Cancel</button>`
+            : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-player-edit" title="Edit" aria-label="Edit">&#9998;</button>`
+        }
+        <button type="button" class="btn btn--danger btn--sm btn--icon btn-player-del" data-id="${p.id}" title="Delete" aria-label="Delete">&#128465;</button>
+      </td>
+    </tr>`;
+    })
     .join("");
 }
 
@@ -393,14 +441,34 @@ async function refreshFixtures() {
       const a = f.away_club && typeof f.away_club === "object" ? /** @type {{club_name:string}} */ (f.away_club).club_name : "";
       const score =
         f.home_score != null && f.away_score != null ? `${f.home_score} – ${f.away_score}` : "—";
-      return `<tr>
+      const isEditing = editingFixtureId !== null && String(editingFixtureId) === String(f.id);
+      const hs = f.home_score != null && f.home_score !== "" ? String(f.home_score) : "";
+      const as = f.away_score != null && f.away_score !== "" ? String(f.away_score) : "";
+      const st = String(f.status ?? "upcoming");
+      const scoreCell = isEditing
+        ? `<span class="admin-inline-scores"><input type="number" class="inp-fix-home-score" min="0" max="999" step="1" value="${escapeHtml(hs)}" aria-label="Home score" /> <span class="admin-muted">–</span> <input type="number" class="inp-fix-away-score" min="0" max="999" step="1" value="${escapeHtml(as)}" aria-label="Away score" /></span>`
+        : escapeHtml(score);
+      const statusCell = isEditing
+        ? `<select class="inp-fix-status" aria-label="Status">
+            <option value="upcoming" ${st === "upcoming" ? "selected" : ""}>upcoming</option>
+            <option value="finished" ${st === "finished" ? "selected" : ""}>finished</option>
+            <option value="postponed" ${st === "postponed" ? "selected" : ""}>postponed</option>
+          </select>`
+        : escapeHtml(st);
+      const actionsCell = isEditing
+        ? `<button type="button" class="btn btn--primary btn--sm btn--icon btn-fixture-save" data-id="${f.id}" title="Save" aria-label="Save">&#128190;</button>
+           <button type="button" class="btn btn--ghost btn--sm btn-fixture-cancel">Cancel</button>
+           <button type="button" class="btn btn--danger btn--sm btn--icon btn-fix-del" data-id="${f.id}" title="Delete" aria-label="Delete">&#128465;</button>`
+        : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-fixture-edit" data-id="${f.id}" title="Edit" aria-label="Edit">&#9998;</button>
+           <button type="button" class="btn btn--danger btn--sm btn--icon btn-fix-del" data-id="${f.id}" title="Delete" aria-label="Delete">&#128465;</button>`;
+      return `<tr data-fixture-id="${f.id}">
         <td>${f.id}</td>
         <td>${escapeHtml(league)}</td>
         <td>${escapeHtml(h)} vs ${escapeHtml(a)}</td>
         <td>${escapeHtml(String(f.match_date))} ${escapeHtml(String(f.match_time)).slice(0, 5)}</td>
-        <td>${escapeHtml(score)}</td>
-        <td>${escapeHtml(String(f.status))}</td>
-        <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-fix-del" data-id="${f.id}" title="Delete" aria-label="Delete">&#128465;</button></td>
+        <td>${scoreCell}</td>
+        <td>${statusCell}</td>
+        <td>${actionsCell}</td>
       </tr>`;
     })
     .join("");
@@ -418,18 +486,24 @@ async function refreshPhotos() {
   const tbody = document.querySelector("#table-photos tbody");
   if (!tbody) return;
   tbody.innerHTML = photos
-    .map(
-      (p) => `
+    .map((p) => {
+      const isEditing = editingPhotoId !== null && String(editingPhotoId) === String(p.id);
+      return `
       <tr data-photo-id="${p.id}">
         <td>${p.id}</td>
         <td><img class="thumb" src="${escapeHtml(resolveBackendPublicFileUrl(String(p.image_url)))}" alt="" /></td>
         <td>
-          <input type="file" class="inp-photo-replace" accept="image/*" />
-          <button type="button" class="btn btn--primary btn--sm btn-photo-replace">Replace</button>
+          ${
+            isEditing
+              ? `<input type="file" class="inp-photo-replace" accept="image/*" />
+                 <button type="button" class="btn btn--primary btn--sm btn--icon btn-photo-save" title="Save" aria-label="Save">&#128190;</button>
+                 <button type="button" class="btn btn--ghost btn--sm btn-photo-cancel">Cancel</button>`
+              : `<button type="button" class="btn btn--primary btn--sm btn--icon btn-photo-edit" title="Edit" aria-label="Edit">&#9998;</button>`
+          }
         </td>
         <td><button type="button" class="btn btn--danger btn--sm btn--icon btn-photo-del" title="Delete" aria-label="Delete">&#128465;</button></td>
-      </tr>`,
-    )
+      </tr>`;
+    })
     .join("");
   const hint = document.querySelector("#panel-photos .admin-muted");
   if (hint) hint.textContent = `Maximum of ${max} images (${photos.length} in use).`;
@@ -535,9 +609,6 @@ async function refreshAll() {
   if (document.getElementById("panel-standings")?.classList.contains("is-active")) {
     await loadStandingsData();
   }
-  if (document.getElementById("panel-certificates")?.classList.contains("is-active")) {
-    await loadCertificatesData();
-  }
 }
 
 function syncStandingsLeagueSelect() {
@@ -623,70 +694,6 @@ async function refreshStandingsPanel() {
   await loadStandingsData();
 }
 
-async function loadCertificatesData() {
-  const { ok, data, status } = await apiGet("/api/v1/admin/certificates", { auth: true });
-  if (!ok) {
-    certificatesRaw = [];
-    showGlobalAlert(formatApiErrors(data, { status }));
-    renderCertificatesTable();
-    return;
-  }
-  certificatesRaw = /** @type {Record<string, unknown>[]} */ (data.certificates || []);
-  renderCertificatesTable();
-}
-
-function renderCertificatesTable() {
-  const tbody = document.querySelector("#table-certificates tbody");
-  if (!tbody) return;
-  const q = (document.getElementById("certificates-search")?.value || "").trim().toLowerCase();
-  let rows = [...certificatesRaw];
-  if (q) {
-    rows = rows.filter((c) => {
-      const blob = [
-        c.title,
-        c.user_name,
-        c.student_staff_id,
-        c.user_email,
-        c.positions_played,
-        c.type,
-      ]
-        .map((x) => String(x ?? "").toLowerCase())
-        .join(" ");
-      return blob.includes(q);
-    });
-  }
-  const key = certSortKey;
-  const dir = certSortDir;
-  const numKeys = ["scored", "assisted", "participate_year_start"];
-  rows.sort((a, b) => {
-    if (numKeys.includes(key)) return numSort(a, b, key, dir);
-    return String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, { sensitivity: "base" }) * dir;
-  });
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="admin-muted">No certificates or no match for search.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = rows
-    .map((c) => {
-      const yr = `${c.participate_year_start ?? "—"}-${c.participate_year_end ?? "—"}`;
-      return `<tr>
-        <td>${escapeHtml(String(c.title ?? "—"))}</td>
-        <td>${escapeHtml(String(c.student_staff_id ?? "—"))}</td>
-        <td>${escapeHtml(String(c.user_name ?? "—"))}</td>
-        <td>${escapeHtml(yr)}</td>
-        <td>${escapeHtml(String(c.positions_played ?? "—"))}</td>
-        <td>${escapeHtml(String(c.scored ?? "—"))}</td>
-        <td>${escapeHtml(String(c.assisted ?? "—"))}</td>
-        <td><button type="button" class="btn btn--primary btn--sm btn-cert-pdf" data-cert-id="${c.id}">PDF</button></td>
-      </tr>`;
-    })
-    .join("");
-}
-
-async function refreshCertificatesPanel() {
-  await loadCertificatesData();
-}
-
 function wireStandingsPanel() {
   document.getElementById("standings-league-select")?.addEventListener("change", () => {
     void loadStandingsData();
@@ -708,47 +715,6 @@ function wireStandingsPanel() {
       standingsSortDir = key === "club_name" ? 1 : -1;
     }
     renderStandingsTable();
-  });
-}
-
-function wireCertificatesPanel() {
-  document.getElementById("certificates-search")?.addEventListener("input", () => {
-    renderCertificatesTable();
-  });
-  document.getElementById("btn-certificates-refresh")?.addEventListener("click", () => {
-    void refreshCertificatesPanel();
-  });
-  document.querySelector("#table-certificates thead")?.addEventListener("click", (e) => {
-    const th = /** @type {HTMLElement} */ (e.target).closest("th[data-cert-sort]");
-    if (!th) return;
-    const key = th.getAttribute("data-cert-sort");
-    if (!key) return;
-    if (certSortKey === key) certSortDir *= -1;
-    else {
-      certSortKey = key;
-      certSortDir = 1;
-    }
-    renderCertificatesTable();
-  });
-  document.querySelector("#table-certificates")?.addEventListener("click", async (e) => {
-    const btn = /** @type {HTMLElement} */ (e.target).closest(".btn-cert-pdf");
-    if (!btn) return;
-    const id = btn.getAttribute("data-cert-id");
-    if (!id || !getToken()) return;
-    const res = await fetch(`${API_BASE_URL}/api/v1/admin/certificates/${id}/pdf`, {
-      headers: { Authorization: `Bearer ${getToken()}`, Accept: "application/pdf" },
-    });
-    if (!res.ok) {
-      showGlobalAlert("Could not download certificate PDF.");
-      return;
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `certificate-${id}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
   });
 }
 
@@ -777,7 +743,6 @@ function wireNav() {
     const name = btn.dataset.panel || "leagues";
     setPanel(name);
     if (name === "standings") await refreshStandingsPanel();
-    if (name === "certificates") await refreshCertificatesPanel();
   });
 }
 
@@ -968,15 +933,142 @@ function wireClubTable() {
 
 function wirePlayers() {
   document.querySelector("#table-players")?.addEventListener("click", async (e) => {
-    const t = /** @type {HTMLElement} */ (e.target);
-    if (!t.classList.contains("btn-player-del")) return;
-    const id = t.getAttribute("data-id");
-    if (!id || !confirm("Delete this player?")) return;
-    const { ok, data } = await apiDelete(`/api/v1/admin/players/${id}`, { auth: true });
-    if (!ok) showGlobalAlert(formatApiErrors(data));
-    else {
-      showGlobalAlert("Player removed.", "success");
-      await refreshAll();
+    const target = /** @type {HTMLElement} */ (e.target);
+    const row = target.closest("tr[data-player-id]");
+    if (!row) return;
+    const id = row.getAttribute("data-player-id");
+    if (!id) return;
+
+    const editBtn = target.closest(".btn-player-edit");
+    const cancelBtn = target.closest(".btn-player-cancel");
+    const saveBtn = target.closest(".btn-player-save");
+    const delBtn = target.closest(".btn-player-del");
+
+    if (editBtn) {
+      editingPlayerId = Number(id);
+      renderPlayersTableFromCache();
+      return;
+    }
+    if (cancelBtn) {
+      editingPlayerId = null;
+      renderPlayersTableFromCache();
+      return;
+    }
+    if (saveBtn) {
+      const full_name = String((/** @type {HTMLInputElement | null} */ (row.querySelector(".inp-player-name"))?.value || "")).trim();
+      const student_staff_id = String((/** @type {HTMLInputElement | null} */ (row.querySelector(".inp-player-ssid"))?.value || "")).trim();
+      const position = String((/** @type {HTMLInputElement | null} */ (row.querySelector(".inp-player-position"))?.value || "")).trim();
+      const club_id_raw = String((/** @type {HTMLSelectElement | null} */ (row.querySelector(".inp-player-club"))?.value || "")).trim();
+      if (!full_name || !student_staff_id || !club_id_raw) {
+        showGlobalAlert("Name, Student/Staff Id, Club and Year are required.");
+        return;
+      }
+      const parsedClubId = Number(club_id_raw);
+      const playerIdNum = Number(id);
+      /** @type {Record<string, unknown> | null} */
+      let currentPlayer = null;
+      for (const club of clubsCache) {
+        if (!Array.isArray(club.players)) continue;
+        const hit = club.players.find((p) => Number(p?.id) === playerIdNum);
+        if (!hit) continue;
+        currentPlayer = hit;
+        break;
+      }
+      /** @type {{ full_name?: string; student_staff_id?: string; position?: string | null; club_id?: number }} */
+      const body = {};
+      if (!currentPlayer || String(currentPlayer.full_name ?? "") !== full_name) {
+        body.full_name = full_name;
+      }
+      if (!currentPlayer || String(currentPlayer.student_staff_id ?? "") !== student_staff_id) {
+        body.student_staff_id = student_staff_id;
+      }
+      if (!currentPlayer || String(currentPlayer.position ?? "") !== position) {
+        // Keep compatibility with backends that reject nullable strings on PATCH.
+        if (position) body.position = position;
+      }
+      if (Number.isFinite(parsedClubId) && parsedClubId > 0) {
+        if (!currentPlayer || Number(currentPlayer.club_id ?? 0) !== parsedClubId) {
+          body.club_id = parsedClubId;
+        }
+      }
+      if (Object.keys(body).length === 0) {
+        editingPlayerId = null;
+        showGlobalAlert("No changes to save.", "success");
+        renderPlayersTableFromCache();
+        return;
+      }
+      const { ok, data, status } = await apiPatchJson(
+        `/api/v1/admin/players/${id}`,
+        body,
+        { auth: true },
+      );
+      if (!ok) {
+        showGlobalAlert(formatApiErrors(data, { status }));
+        return;
+      }
+      const updatedClubId = typeof body.club_id === "number" ? body.club_id : null;
+      let movedPlayer = null;
+      for (const club of clubsCache) {
+        if (!Array.isArray(club.players)) continue;
+        const idx = club.players.findIndex((p) => Number(p?.id) === playerIdNum);
+        if (idx === -1) continue;
+        const current = club.players[idx] || {};
+        const merged = {
+          ...current,
+          full_name: body.full_name ?? current.full_name,
+          student_staff_id: body.student_staff_id ?? current.student_staff_id,
+          position: Object.prototype.hasOwnProperty.call(body, "position") ? body.position : current.position,
+          club_id: updatedClubId ?? current.club_id,
+        };
+        if (updatedClubId !== null && Number(club.id) !== Number(updatedClubId)) {
+          movedPlayer = merged;
+          club.players.splice(idx, 1);
+        } else {
+          club.players[idx] = merged;
+        }
+        break;
+      }
+      if (movedPlayer && updatedClubId !== null) {
+        const targetClub = clubsCache.find((c) => Number(c.id) === Number(updatedClubId));
+        if (targetClub) {
+          if (!Array.isArray(targetClub.players)) targetClub.players = [];
+          targetClub.players.push(movedPlayer);
+        }
+      }
+      editingPlayerId = null;
+      showGlobalAlert("Player updated.", "success");
+      renderPlayersTableFromCache();
+      syncFixtureStatSelectors();
+      return;
+    }
+    if (delBtn) {
+      if (!confirm("Delete this player?")) return;
+      const { ok, data } = await apiDelete(`/api/v1/admin/players/${id}`, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data));
+      else {
+        if (editingPlayerId !== null && Number(editingPlayerId) === Number(id)) editingPlayerId = null;
+        showGlobalAlert("Player removed.", "success");
+        await refreshAll();
+      }
+    }
+  });
+
+  document.querySelector("#table-players")?.addEventListener("change", (e) => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    const yearSelect = target.closest(".inp-player-year");
+    if (!yearSelect) return;
+    const row = yearSelect.closest("tr[data-player-id]");
+    if (!row) return;
+    const clubSelect = /** @type {HTMLSelectElement | null} */ (row.querySelector(".inp-player-club"));
+    const selectedLeagueId = String((/** @type {HTMLSelectElement} */ (yearSelect)).value || "");
+    if (!clubSelect) return;
+    const options = clubsCache
+      .filter((c) => String(c.league_id ?? "") === selectedLeagueId)
+      .map((c) => `<option value="${c.id}">${escapeHtml(String(c.club_name ?? ""))}</option>`)
+      .join("");
+    clubSelect.innerHTML = options;
+    if (!clubSelect.value && clubSelect.options.length > 0) {
+      clubSelect.value = clubSelect.options[0].value;
     }
   });
 }
@@ -1007,15 +1099,74 @@ function wireFixtures() {
   });
 
   document.querySelector("#table-fixtures")?.addEventListener("click", async (e) => {
-    const t = /** @type {HTMLElement} */ (e.target);
-    if (!t.classList.contains("btn-fix-del")) return;
-    const id = t.getAttribute("data-id");
-    if (!id || !confirm("Delete fixture?")) return;
-    const { ok, data } = await apiDelete(`/api/v1/admin/fixtures/${id}`, { auth: true });
-    if (!ok) showGlobalAlert(formatApiErrors(data));
-    else {
-      showGlobalAlert("Fixture deleted.", "success");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const tr = /** @type {HTMLElement | null} */ (target.closest("tr[data-fixture-id]"));
+
+    const editBtn = target.closest(".btn-fixture-edit");
+    const cancelBtn = target.closest(".btn-fixture-cancel");
+    const saveBtn = target.closest(".btn-fixture-save");
+    const delBtn = target.closest(".btn-fix-del");
+
+    if (editBtn) {
+      const id = editBtn.getAttribute("data-id");
+      if (!id) return;
+      editingFixtureId = Number(id);
+      await refreshFixtures();
+      return;
+    }
+    if (cancelBtn) {
+      editingFixtureId = null;
+      await refreshFixtures();
+      return;
+    }
+    if (saveBtn && tr) {
+      const id = tr.getAttribute("data-fixture-id");
+      if (!id) return;
+      const homeRaw = String((/** @type {HTMLInputElement | null} */ (tr.querySelector(".inp-fix-home-score")))?.value ?? "").trim();
+      const awayRaw = String((/** @type {HTMLInputElement | null} */ (tr.querySelector(".inp-fix-away-score")))?.value ?? "").trim();
+      const status = String((/** @type {HTMLSelectElement | null} */ (tr.querySelector(".inp-fix-status")))?.value ?? "").trim();
+      if (!status) {
+        showGlobalAlert("Status is required.");
+        return;
+      }
+      /** @type {{ status: string; home_score: number | null; away_score: number | null }} */
+      const body = { status, home_score: null, away_score: null };
+      if (homeRaw !== "") {
+        const n = Number(homeRaw);
+        if (!Number.isInteger(n) || n < 0) {
+          showGlobalAlert("Home score must be a whole number ≥ 0 or left blank.");
+          return;
+        }
+        body.home_score = n;
+      }
+      if (awayRaw !== "") {
+        const n = Number(awayRaw);
+        if (!Number.isInteger(n) || n < 0) {
+          showGlobalAlert("Away score must be a whole number ≥ 0 or left blank.");
+          return;
+        }
+        body.away_score = n;
+      }
+      const { ok, data, status: httpStatus } = await apiPatchJson(`/api/v1/admin/fixtures/${id}`, body, { auth: true });
+      if (!ok) {
+        showGlobalAlert(formatApiErrors(data, { status: httpStatus }));
+        return;
+      }
+      editingFixtureId = null;
+      showGlobalAlert("Fixture updated.", "success");
       await refreshAll();
+      return;
+    }
+    if (delBtn) {
+      const id = delBtn.getAttribute("data-id");
+      if (!id || !confirm("Delete fixture?")) return;
+      const { ok, data, status: httpStatus } = await apiDelete(`/api/v1/admin/fixtures/${id}`, { auth: true });
+      if (!ok) showGlobalAlert(formatApiErrors(data, { status: httpStatus }));
+      else {
+        if (editingFixtureId !== null && String(editingFixtureId) === String(id)) editingFixtureId = null;
+        showGlobalAlert("Fixture deleted.", "success");
+        await refreshAll();
+      }
     }
   });
 }
@@ -1249,35 +1400,56 @@ function wirePhotos() {
   });
 
   document.querySelector("#table-photos")?.addEventListener("click", async (e) => {
-    const t = /** @type {HTMLElement} */ (e.target);
-    const tr = t.closest("tr[data-photo-id]");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const tr = target.closest("tr[data-photo-id]");
     if (!tr) return;
     const id = tr.getAttribute("data-photo-id");
     if (!id) return;
-    if (t.classList.contains("btn-photo-del")) {
+    const editBtn = target.closest(".btn-photo-edit");
+    const cancelBtn = target.closest(".btn-photo-cancel");
+    const delBtn = target.closest(".btn-photo-del");
+    const saveBtn = target.closest(".btn-photo-save");
+
+    if (editBtn) {
+      editingPhotoId = id;
+      await refreshPhotos();
+      return;
+    }
+    if (cancelBtn) {
+      editingPhotoId = null;
+      await refreshPhotos();
+      return;
+    }
+    if (delBtn) {
       if (!confirm("Delete photo?")) return;
       const { ok, data } = await apiDelete(`/api/v1/admin/photos/${id}`, { auth: true });
       if (!ok) showGlobalAlert(formatApiErrors(data));
       else {
+        if (editingPhotoId !== null && String(editingPhotoId) === String(id)) editingPhotoId = null;
         showGlobalAlert("Photo removed.", "success");
         await refreshAll();
       }
+      return;
     }
-    if (t.classList.contains("btn-photo-replace")) {
+    if (saveBtn) {
       const inp = tr.querySelector(".inp-photo-replace");
-      const file = inp?.files?.[0];
+      const fileInput = inp instanceof HTMLInputElement ? inp : null;
+      const file = fileInput?.files?.[0];
       if (!file) {
         showGlobalAlert("Choose an image file.");
         return;
       }
       const fd = new FormData();
       fd.append("image", file);
-      const { ok, data } = await apiPatchForm(`/api/v1/admin/photos/${id}`, fd);
+      fd.append("_method", "PATCH");
+      const { ok, data } = await apiPostForm(`/api/v1/admin/photos/${id}`, fd);
       if (!ok) showGlobalAlert(formatApiErrors(data));
       else {
+        editingPhotoId = null;
         showGlobalAlert("Photo updated.", "success");
         await refreshAll();
       }
+      return;
     }
   });
 }
@@ -1528,7 +1700,6 @@ async function boot() {
 
   wireNav();
   wireStandingsPanel();
-  wireCertificatesPanel();
   wireLeagueTable();
   wireLeagueCreate();
   wireClubTable();

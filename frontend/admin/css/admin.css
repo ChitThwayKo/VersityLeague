@@ -395,6 +395,19 @@ table.admin-table {
   color: rgba(27, 28, 25, 0.65);
 }
 
+.admin-inline-scores {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.admin-inline-scores input[type="number"] {
+  width: 3.25rem;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 768px) {
   .admin-shell {
     flex-direction: column;
